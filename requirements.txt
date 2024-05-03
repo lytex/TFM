@@ -1,0 +1,96 @@
+absl-py==2.1.0            # via tensorboard, tensorflow
+astropy==6.0.1            # via astroquery, lightkurve, pyvo
+astropy-iers-data==0.2024.4.22.0.29.50  # via astropy
+astroquery==0.4.7         # via lightkurve
+astunparse==1.6.3         # via tensorflow
+autograd==1.6.2           # via oktopus
+backports-tarfile==1.1.1  # via jaraco-context
+beautifulsoup4==4.12.3    # via astroquery, lightkurve
+bokeh==3.4.1              # via lightkurve
+cachetools==5.3.3         # via google-auth
+certifi==2024.2.2         # via requests
+cffi==1.16.0              # via cryptography
+charset-normalizer==3.3.2  # via requests
+contourpy==1.2.1          # via bokeh, matplotlib
+cryptography==42.0.5      # via secretstorage
+cycler==0.12.1            # via matplotlib
+fbpca==1.0                # via lightkurve
+flatbuffers==1.12         # via tensorflow
+fonttools==4.51.0         # via matplotlib
+future==1.0.0             # via autograd, uncertainties
+gast==0.4.0               # via tensorflow
+google-auth==2.29.0       # via google-auth-oauthlib, tensorboard
+google-auth-oauthlib==0.4.6  # via tensorboard
+google-pasta==0.2.0       # via tensorflow
+grpcio==1.62.2            # via tensorboard, tensorflow
+h5py==3.11.0              # via tensorflow
+html5lib==1.1             # via astroquery
+idna==3.7                 # via requests
+importlib-metadata==7.1.0  # via keyring
+jaraco-classes==3.4.0     # via keyring
+jaraco-context==5.3.0     # via keyring
+jaraco-functools==4.0.1   # via keyring
+jeepney==0.8.0            # via keyring, secretstorage
+jinja2==3.1.3             # via bokeh
+joblib==1.4.0             # via scikit-learn
+keras==2.9.0              # via tensorflow
+keras-preprocessing==1.1.2  # via tensorflow
+keyring==25.2.0           # via astroquery
+kiwisolver==1.4.5         # via matplotlib
+libclang==18.1.1          # via tensorflow
+lightkurve==2.0.11        # via -r requirements.in
+markdown==3.6             # via tensorboard
+markupsafe==2.1.5         # via jinja2, werkzeug
+matplotlib==3.8.4         # via lightkurve
+memoization==0.4.0        # via lightkurve
+more-itertools==10.2.0    # via jaraco-classes, jaraco-functools
+numpy==1.26.4             # via astropy, astroquery, autograd, bokeh, contourpy, h5py, keras-preprocessing, lightkurve, matplotlib, oktopus, opt-einsum, pandas, patsy, pyerfa, pywavelets, scikit-learn, scipy, tensorboard, tensorflow
+oauthlib==3.2.2           # via requests-oauthlib
+oktopus==0.1.2            # via lightkurve
+opt-einsum==3.3.0         # via tensorflow
+packaging==24.0           # via astropy, bokeh, matplotlib, tensorflow
+pandas==2.2.2             # via -r requirements.in, bokeh, lightkurve
+patsy==0.5.6              # via lightkurve
+pillow==10.3.0            # via bokeh, matplotlib
+protobuf==3.19.6          # via tensorboard, tensorflow
+pyasn1==0.6.0             # via pyasn1-modules, rsa
+pyasn1-modules==0.4.0     # via google-auth
+pycparser==2.22           # via cffi
+pyerfa==2.0.1.4           # via astropy
+pyparsing==3.1.2          # via matplotlib
+python-dateutil==2.9.0.post0  # via matplotlib, pandas
+pytz==2024.1              # via pandas
+pyvo==1.5.1               # via astroquery
+pywavelets==1.6.0         # via -r requirements.in
+pyyaml==6.0.1             # via astropy, bokeh
+requests==2.31.0          # via astroquery, lightkurve, pyvo, requests-oauthlib, tensorboard
+requests-oauthlib==2.0.0  # via google-auth-oauthlib
+rsa==4.9                  # via google-auth
+scikit-learn==1.4.2       # via lightkurve
+scipy==1.13.0             # via lightkurve, oktopus, scikit-learn
+secretstorage==3.3.3      # via keyring
+six==1.16.0               # via astunparse, google-pasta, html5lib, keras-preprocessing, patsy, python-dateutil, tensorflow
+soupsieve==2.5            # via beautifulsoup4
+tensorboard==2.9.1        # via tensorflow
+tensorboard-data-server==0.6.1  # via tensorboard
+tensorboard-plugin-wit==1.8.1  # via tensorboard
+tensorflow==2.9.2         # via -r requirements.in
+tensorflow-estimator==2.9.0  # via tensorflow
+tensorflow-io-gcs-filesystem==0.36.0  # via tensorflow
+termcolor==2.4.0          # via tensorflow
+threadpoolctl==3.4.0      # via scikit-learn
+tornado==6.4              # via bokeh
+tqdm==4.66.2              # via lightkurve
+typing-extensions==4.11.0  # via tensorflow
+tzdata==2024.1            # via pandas
+uncertainties==3.1.7      # via lightkurve
+urllib3==2.2.1            # via requests
+webencodings==0.5.1       # via html5lib
+werkzeug==3.0.2           # via tensorboard
+wheel==0.43.0             # via astunparse, tensorboard
+wrapt==1.16.0             # via tensorflow
+xyzservices==2024.4.0     # via bokeh
+zipp==3.18.1              # via importlib-metadata
+
+# The following packages are considered to be unsafe in a requirements file:
+setuptools==69.5.1        # via tensorboard, tensorflow

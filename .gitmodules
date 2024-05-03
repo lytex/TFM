@@ -1,0 +1,6 @@
+[submodule "models_K2"]
+	path = models_K2
+	url = git@github.com:lytex/models_K2.git
+[submodule "exoplanet-ml"]
+	path = exoplanet-ml
+	url = git@github.com:lytex/exoplanet-ml.git
