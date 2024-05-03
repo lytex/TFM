@@ -424,6 +424,9 @@ curvas_dic_3.keys()
 ds_3_levels = normalize_LC(curvas_dic_3)
 
 
+# %%
+[v.shape for k, v in curvas_dic_3.items()]
+
 # %% colab={"base_uri": "https://localhost:8080/"} id="PyEnskFn2FYE" outputId="db550fc6-2d5d-4db7-ab4d-8c3647e963d8"
 ds_3_train,ds_3_test,label_3_train,label_3_test = split_data_list(ds_3_levels,labels)
 np.shape(ds_3_train[2])
@@ -438,7 +441,7 @@ curvas_dic_4.keys()
 # %% colab={"base_uri": "https://localhost:8080/"} id="xf5rWf-8RR3B" outputId="0e36c01c-37b6-42f9-fc4f-e52666902fc7"
 curvas_dic_4
 # Está dando error normalize_LC
-# ds_4_levels = np.array(normalize_LC(curvas_dic_4))
+ds_4_levels = normalize_LC(curvas_dic_4)
 # print(np.shape(ds_4_levels))
 
 # %% colab={"base_uri": "https://localhost:8080/"} id="HjW3eP5tSN4l" outputId="bbbc3f95-0a46-405e-98ab-0651d668b05f"
@@ -499,22 +502,24 @@ def gen_model_1_level(ds,activation = 'relu'):
 
 
 # %% colab={"base_uri": "https://localhost:8080/", "height": 563} id="s-vaJmZIe9dM" outputId="bf223032-ebbc-4286-b623-64cf808cb4cb"
-plot_results(history_1)
+# plot_results(history_1)
+ds_7[0].shape
+
 
 # %% id="NG5-j8MbAJRe"
-test_loss, test_acc = model_f.evaluate(X_test_7,  y_test_7)
+# model_f =  gen_model_1_level(X_train_7)
+# test_loss, test_acc = model_f.evaluate(X_test_7,  y_test_7)
 
-print("------------------------------")
-print("Métricas de validación")
-print("------------------------------")
-print("Pérdida: %.2f" % (test_loss*100))
-print( "Precisión: %.2f" % (test_acc*100))
+# print("------------------------------")
+# print("Métricas de validación")
+# print("------------------------------")
+# print("Pérdida: %.2f" % (test_loss*100))
+# print( "Precisión: %.2f" % (test_acc*100))
 
-predictions = model_f.predict(X_test_7)
+# predictions = model_f.predict(X_test_7)
 
-for pred,real in zip(predictions,y_test_7):
-  print(pred,real) 
-
+# for pred,real in zip(predictions,y_test_7):
+#   print(pred,real) 
 
 # %% [markdown] id="siPYumaAruqp"
 # # Construnccion del modelo 2
@@ -684,11 +689,10 @@ def gen_model_2_levels(ds,activation = 'relu',summary=False):
 
 
 # %% colab={"base_uri": "https://localhost:8080/", "height": 223} id="53s0EX4Ex4S_" outputId="b5f91e89-6ac8-4cde-be1f-e014faef9800"
-model_3 =  gen_model_3()
-model_3.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), metrics=['accuracy','binary_crossentropy'])
-history_2 = model_3.fit([X_train_7,X_train_8], y_train_7, epochs=1000, batch_size=64,validation_split=0.15,shuffle=True)
-plot_results(history_2)
-
+# model_3 =  gen_model_3()
+# model_3.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), metrics=['accuracy','binary_crossentropy'])
+# history_2 = model_3.fit([X_train_7,X_train_8], y_train_7, epochs=1000, batch_size=64,validation_split=0.15,shuffle=True)
+# plot_results(history_2)
 
 # %% [markdown] id="CMs4doFD4Tcr"
 # # Construnccion del modelo 4
@@ -1058,7 +1062,7 @@ def gen_model_4_levels(ds_train,activation = 'relu'):
 
 
 # %% id="JethGx4LOFeD"
-model_5 =  gen_model_5(ds_4_train, activation = tf.keras.layers.LeakyReLU())
+model_5 =  gen_model_4_levels(ds_4_train, activation = tf.keras.layers.LeakyReLU())
 model_5.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=['accuracy','binary_crossentropy'])
 history_5 = model_5.fit(ds_4_train, label_4_train, epochs=1000, batch_size=64,validation_split=0.15,shuffle=True)
 plot_results(history_5)
