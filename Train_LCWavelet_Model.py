@@ -1097,52 +1097,13 @@ plot_results(hist_test)
 _, accuracy = model.evaluate(X_test[0], y_test)
 print('Accuracy: %.2f' % (accuracy*100))
 
+
 # %% [markdown] id="di4M9N1qa9p2"
 # # Pruebas
 #
 
 # %% [markdown] id="twRMz1xvkoDl"
 # ## 1 nivel
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="tyudQ5b8rac0" outputId="854f5306-d526-4963-eb64-de94630698a9"
-evaluate_model_1_level(gen_model_1_level_2,dataset_path,3,verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="kn-k-vbcttI9" outputId="32bf0f53-ef7e-471f-e363-73520ccb1d7b"
-evaluate_model_1_level(gen_model_1_level_2,dataset_path,4,verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="ImBI2j2x7sr3" outputId="ab60b848-8420-40af-a7b4-1a82c2bac095"
-evaluate_model_1_level(gen_model_1_level_2,dataset_path,5,verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="xbb0qyKcAM4Q" outputId="c13894d0-1fb5-4bcf-9b76-4aa96aed33da"
-evaluate_model_1_level(gen_model_1_level_2,dataset_path,6,verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="kxShttO3AYSL" outputId="0b5dc05e-086b-45ae-9a7d-ecc6f13df8e5"
-evaluate_model_1_level(gen_model_1_level_2,dataset_path,7,verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="hvlcqjhDDe7M" outputId="f0dec2e1-4a20-45cc-cc63-8d044c649b3c"
-evaluate_model_1_level(gen_model_1_level_2,dataset_path,8,verbose=2)
-
-# %% [markdown] id="XnqI_BVoG_aV"
-# ## 2 niveles
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="1OSauS2eHFng" outputId="2bfa12af-f37b-4dbf-d1de-4e50ec7490eb"
-evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[3,4],show_loading=False),verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="Q5f1CSASHFhv" outputId="aa4fe3f9-9af4-4042-b946-56c6d16d2bda"
-evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[4,5],show_loading=False),verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="qIhRxWgFHFSL" outputId="6dcf0c9e-63b8-498a-adc9-3d392e10acbc"
-evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[5,6],show_loading=False),verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 169} id="V5aZHs2IHLja" outputId="14112159-9818-4c0f-fa2d-f299b030e7a2"
-evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[6,7],show_loading=False),verbose=2)
-
-# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="bORjsYFTHM5R" outputId="be7189e9-45a0-460a-e938-af21213f46f0"
-evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[7,8],show_loading=False),verbose=2)
-
-
-# %% [markdown] id="ikhrOF3sbeyD"
-# ## 3 niveles
 
 # %% id="_a1jtXLjgCT-"
 def evaluate_model(model,dataset,verbose = 0,epochs=1000):
@@ -1193,6 +1154,45 @@ def evaluate_model_1_level(model,dataset,level,verbose = 0):
   del  X_train, X_test, y_train, y_test, ds_p, ds_i, ds, label, model_g, history_2, accuracy
   
 
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="tyudQ5b8rac0" outputId="854f5306-d526-4963-eb64-de94630698a9"
+evaluate_model_1_level(gen_model_1_level_2,dataset_path,3,verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="kn-k-vbcttI9" outputId="32bf0f53-ef7e-471f-e363-73520ccb1d7b"
+evaluate_model_1_level(gen_model_1_level_2,dataset_path,4,verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="ImBI2j2x7sr3" outputId="ab60b848-8420-40af-a7b4-1a82c2bac095"
+evaluate_model_1_level(gen_model_1_level_2,dataset_path,5,verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="xbb0qyKcAM4Q" outputId="c13894d0-1fb5-4bcf-9b76-4aa96aed33da"
+evaluate_model_1_level(gen_model_1_level_2,dataset_path,6,verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="kxShttO3AYSL" outputId="0b5dc05e-086b-45ae-9a7d-ecc6f13df8e5"
+evaluate_model_1_level(gen_model_1_level_2,dataset_path,7,verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="hvlcqjhDDe7M" outputId="f0dec2e1-4a20-45cc-cc63-8d044c649b3c"
+evaluate_model_1_level(gen_model_1_level_2,dataset_path,8,verbose=2)
+
+# %% [markdown] id="XnqI_BVoG_aV"
+# ## 2 niveles
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="1OSauS2eHFng" outputId="2bfa12af-f37b-4dbf-d1de-4e50ec7490eb"
+evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[3,4],show_loading=False),verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="Q5f1CSASHFhv" outputId="aa4fe3f9-9af4-4042-b946-56c6d16d2bda"
+evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[4,5],show_loading=False),verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="qIhRxWgFHFSL" outputId="6dcf0c9e-63b8-498a-adc9-3d392e10acbc"
+evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[5,6],show_loading=False),verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 169} id="V5aZHs2IHLja" outputId="14112159-9818-4c0f-fa2d-f299b030e7a2"
+evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[6,7],show_loading=False),verbose=2)
+
+# %% colab={"base_uri": "https://localhost:8080/", "height": 1000} id="bORjsYFTHM5R" outputId="be7189e9-45a0-460a-e938-af21213f46f0"
+evaluate_model(gen_model_2_levels,generate_dataset_model_2(dataset_path,levels=[7,8],show_loading=False),verbose=2)
+
+# %% [markdown] id="ikhrOF3sbeyD"
+# ## 3 niveles
 
 # %% colab={"base_uri": "https://localhost:8080/"} id="_0tQzptJ-BC6" outputId="71824cdd-4405-4952-a8ee-1378b7ce7235"
 evaluate_model(gen_model_3_levels,generate_dataset_model_2(dataset_path,levels=[3,4,5],show_loading=False),verbose=2)
