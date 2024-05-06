@@ -8,12 +8,12 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.16.0
 #   kernelspec:
-#     display_name: aprendizaje
+#     display_name: TFM
 #     language: python
-#     name: aprendizaje
+#     name: tfm
 # ---
 
-# %% id="cb1ccdb1"
+# %% id="cb1ccdb1" editable=true slideshow={"slide_type": ""}
 import pandas as pd
 
 # %% [markdown] id="1c3b8c7c"
