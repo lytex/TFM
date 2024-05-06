@@ -1,3 +1,12 @@
+import pandas as pd
+import lightkurve as lk
+import numpy as np
+import pywt
+import pickle
+import os
+import matplotlib.pyplot as plt
+from LCWavelet import *
+
 class LightCurveWaveletFoldCollection():
   
     def __init__(self,light_curve,wavelets):
@@ -100,13 +109,11 @@ def fold_curve(light_curve_collection, period, epoch, sigma = 20, sigma_upper = 
     ----------
     una sola curva de luz
     """
-    if not is_colab:
-        lc_collection = lk.LightCurveCollection([lc.remove_outliers(sigma=20, sigma_upper=4) for lc in light_curve_collection])
+    lc_collection = lk.LightCurveCollection([lc.remove_outliers(sigma=20, sigma_upper=4) for lc in light_curve_collection])
     
     lc_ro = lc_collection.stitch()
     
-    if is_colab:
-        lc_ro = lc_ro.remove_outliers(sigma=sigma, sigma_upper=sigma_upper)
+    # lc_ro = lc_ro.remove_outliers(sigma=sigma, sigma_upper=sigma_upper)
     
     lc_nonans = lc_ro.remove_nans()
     lc_fold = lc_nonans.fold(period = period,epoch_time = epoch)
@@ -189,7 +196,7 @@ def process_light_curve(kepler_id,kepler_name,disp,period,epoch,w_family,levels,
         lc_wavelet_collection.save(path)
     return lc_wavelet_collection
 
-def process_dataset(df_koi,plot = False, plot_comparative = False,repeat_completed=True,completed=None):
+def process_dataset(df_koi,plot = False, plot_comparative = False,repeat_completed=True,completed=None, save_path=None, wavelet_family=None, level=None, save_lc=None, wavelet_windows=None):
     lc_wavelets = dict()
     lc_errors = []
     for i in range (len(df_koi)):
@@ -206,6 +213,9 @@ def process_dataset(df_koi,plot = False, plot_comparative = False,repeat_complet
         except:
             lc_errors.append(koi_id)
             print(f'Error with KIC {koi_id}')
+            from IPython import get_ipython
+            ipython = get_ipython()
+            ipython.magic("tb Verbose")
     f = open (save_path+'errors.txt','w')
     for lc_error in lc_errors:
         text = 'KIC '+str(lc_error)+'\n'

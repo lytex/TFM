@@ -163,3 +163,5 @@ cython_debug/
 astronet
 waveletsG
 waveletsK
+
+all_data*
