@@ -58,9 +58,10 @@ class LightCurveWaveletCollection():
             pickle.dump(self, f)
 
     def load(path):
-        with open(path, "rb") as f:
-            w_loaded = pickle.load(f)
-        return w_loaded
+        if path.endswith(".pickle"):
+            with open(path, "rb") as f:
+                w_loaded = pickle.load(f)
+            return w_loaded
 
     def plot_comparative(self):
         light_curve_p = self.pliegue_par._light_curve
