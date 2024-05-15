@@ -256,7 +256,7 @@ def load_files(path):
     completed_id.append(path+element)
   return completed_id
 
-def generate_dataset_model_1(path,level=8):
+def generate_dataset_model_1(path,level=8, progress=True):
   files = load_files(path)
   dataset_par =[]
   dataset_inpar= []
@@ -265,7 +265,8 @@ def generate_dataset_model_1(path,level=8):
 
   for i,file in enumerate(files):
     # output.clear()
-    print(f"loading [{i*100/len(files):.0f}%] file:{file}")
+    if progress:
+        print(f"loading [{i*100/len(files):.0f}%] file:{file}")
     lcwC = LightCurveWaveletCollection.load(file)
     status = lcwC.headers['class']
     curva_par = lcwC.pliegue_par.get_approximation_coefficent(level=level)
