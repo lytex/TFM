@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.0
+#       jupytext_version: 1.16.2
 #   kernelspec:
 #     display_name: TFM
 #     language: python
@@ -55,3 +55,5 @@ errores = process_dataset(df,repeat_completed=False, completed=completed_id, sav
 
 dataset_path= save_path
 train_split = .80
+
+# %%

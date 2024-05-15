@@ -126,11 +126,18 @@ def apply_wavelet(light_curve,w_family, levels,cut_border_percent=0.1):
     time = light_curve.time.value
     data = light_curve.flux.value
     lc_wavelet = []
-    for level in range(levels):
-        level_w = pywt.dwt(data, w_family)
-        lc_wavelet.append(cut_border(level_w,cut_border_percent))
-        #lc_wavelet.append(level_w)
-        data = level_w[0]
+    try:
+        for level in range(levels):
+            level_w = pywt.dwt(data, w_family)
+            lc_wavelet.append(cut_border(level_w,cut_border_percent))
+            #lc_wavelet.append(level_w)
+            data = level_w[0]
+    except TypeError: 
+        for level in levels:
+            level_w = pywt.dwt(data, w_family)
+            lc_wavelet.append(cut_border(level_w,cut_border_percent))
+            #lc_wavelet.append(level_w)
+            data = level_w[0]
     return LightCurveWaveletFoldCollection(light_curve,lc_wavelet)
 
 def load_light_curve(kepler_id,mission='Kepler'):
