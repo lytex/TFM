@@ -14,6 +14,7 @@
 # ---
 
 # %%
+# %pdb off
 import pandas as pd
 import lightkurve as lk
 import numpy as np
@@ -123,16 +124,14 @@ os.environ["LOG_LEVEL"] = "DEBUG"
 kep_id = 'KIC ' + df.kepid.astype(str)
 def download_one(kic):
     lc_search = lk.search_lightcurve(kic, mission="Kepler")
-    light_curve_collection = lc_search.download_all(download_dir="data2/")
+    light_curve_collection = lc_search.download_all(download_dir="data3/", curl_flag=True)
 
 
 for row in tqdm(kep_id):
     try:
         download_one(row)
     except:
-        from IPython import get_ipython
-        ipython = get_ipython()
-        ipython.magic("tb Verbose")
+        pass
  
 
 # from concurrent import futures
@@ -141,3 +140,5 @@ for row in tqdm(kep_id):
 # pd.concat([lc.table.to_pandas() for lc in lc_search]).to_csv("table.csv", index=None)
 # lc_search[0].table.to_pandas()
 # light_curve_collection
+
+# %%
