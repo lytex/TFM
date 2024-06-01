@@ -120,23 +120,30 @@ np.arange(len([1, 2, 3, 4]))
 
 # %%
 import os
-os.environ["LOG_LEVEL"] = "DEBUG"
-kep_id = 'KIC ' + df.kepid.astype(str)
+kep_id = list('KIC ' + df.kepid.astype(str))
+import traceback
 def download_one(kic):
-    lc_search = lk.search_lightcurve(kic, mission="Kepler")
-    light_curve_collection = lc_search.download_all(download_dir="data3/", curl_flag=True)
-
-
-for row in tqdm(kep_id):
     try:
-        download_one(row)
-    except:
-        pass
+        lc_search = lk.search_lightcurve(kic, mission="Kepler")
+        light_curve_collection = lc_search.download_all(download_dir="data3/")
+    except Exception:
+        print(traceback.format_exc())
+    return None
+
+
+# for row in tqdm(kep_id):
+#     download_one(row)
  
 
-# from concurrent import futures
-# with futures.ThreadPoolExecutor(max_workers=32) as executor:
+# from prpl import prpl
+# from atpbar import flushing
+# prpl(target_list=kep_id, target_function=download_one, list_sep=16, timer=True)
+from concurrent import futures
+from parallelbar import progress_map
+# with flushing(), futures.ThreadPoolExecutor(max_workers=32) as executor:
 #     res = executor.map(download_one, kep_id)
+progress_map(download_one, kep_id, n_cpu=16)
+
 # pd.concat([lc.table.to_pandas() for lc in lc_search]).to_csv("table.csv", index=None)
 # lc_search[0].table.to_pandas()
 # light_curve_collection
