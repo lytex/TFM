@@ -105,7 +105,7 @@ class LightCurveWaveletGlobalLocalCollection():
             pickle.dump(self, f)
 
     @classmethod
-    def from_pickle(cls):
+    def from_pickle(cls, path):
         if path.endswith(".pickle"):
             with open(path, "rb") as f:
                 w_loaded = pickle.load(f)
