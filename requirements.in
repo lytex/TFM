@@ -3,3 +3,4 @@ PyWavelets
 tensorflow==2.9.2
 pandas
 astropy<5.0
+parallelbar

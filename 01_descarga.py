@@ -135,7 +135,16 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     return lc_wavelet_collection
 
 
-process_func = partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=False, plot_comparative=False, save=True, path="all_data_2024-06-01/")
+process_func =  partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=False, plot_comparative=False, save=True, path="all_data_2024-06-01/")
 
-progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=16, total=len(df))
+def process_func_continue(row):
+    try:
+        return process_func(row)
+    except Exception:
+        print(f"Exception on {row.kepid}")
+        import traceback; print("".join(traceback.format_stack()))
+        import sys; sys.__breakpointhook__()
+
+
+result = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=16, total=len(df), error_behavior='coerce', need_serialize=True)
 # process_light_curve
