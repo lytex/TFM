@@ -154,7 +154,7 @@ def generate_view(time,
     NumPy array of length num_bins containing the aggregated values in uniformly
     spaced bins on the phase-folded time axis.
   """
-  view, bin_counts = binning.bin_and_aggregate(time, values, num_bins,
+  view, bin_counts = bin_and_aggregate(time, values, num_bins,
                                                bin_width, t_min, t_max)
   # Empty bins fall back to the global median.
   view = np.where(bin_counts > 0, view, np.median(values))

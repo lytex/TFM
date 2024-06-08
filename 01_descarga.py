@@ -14,6 +14,7 @@
 # ---
 
 # %%
+# %pdb on
 import warnings
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
@@ -27,6 +28,7 @@ import matplotlib.pyplot as plt
 from LCWavelet import *
 from binning import global_view, local_view
 from parallelbar import progress_map
+from tqdm import tqdm
 from functools import partial
 import logging
 
@@ -52,7 +54,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     logger.addHandler(console_handler)
     
     # 1. Bajarse los datos con lightkurve o cargarlos si ya están bajados
-    logger.info(f"Bajando datos para {row.kepid}...");
+    logger.info(f"Bajando datos para {mission} {row.kepid}...");
     kic = f'KIC {row.kepid}'
     lc_search = lk.search_lightcurve(kic, mission=mission)
     light_curve_collection = lc_search.download_all(download_dir=download_dir)
@@ -71,11 +73,19 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 
     # 4. Aplicar bineado en local y global y normalizar
     logger.info("Bineando en vista global y vista local...")
-    lc_odd_global =  global_view(np.arange(lc_odd), lc_odd, row.koi_period, normalize=True)
-    lc_even_global =  global_view(np.arange(lc_even), lc_even, row.koi_period, normalize=True)
     
-    lc_odd_local =  local_view(np.arange(lc_odd), lc_odd, row.koi_period)
-    lc_even_local =  local_view(np.arange(lc_even), lc_even, row.koi_period)
+    lc_odd.sort("time")
+    lc_even.sort("time")
+    
+    lc_odd_global_flux =  global_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, normalize=False)
+    lc_even_global_flux =  global_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, normalize=False)
+    lc_odd_global = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_global_flux)), flux=lc_odd_global_flux)
+    lc_even_global = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_global_flux)), flux=lc_even_global_flux)
+    
+    lc_odd_local_flux =  local_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, row.koi_duration, normalize=False)
+    lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration, normalize=False)
+    lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux)
+    lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
 
     if wavelet_window is not None:
         logger.info('Aplicando ventana ...')
@@ -84,16 +94,20 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_impar_local = cut_wavelet(lc_odd_local, wavelet_window)
         lc_par_local = cut_wavelet(lc_even_local, wavelet_window)
     else:
+        lc_impar_global = lc_odd_global
+        lc_par_global = lc_even_global
+        lc_impar_local = lc_odd_local
+        lc_par_local = lc_even_local
         lc_impar_local = lc_odd_local
         lc_par_local = lc_even_local
 
     
     # para quitar oscilaciones en los bordes (quizás mejor no guardar los datos con esto quitado)
     logger.info("Quitando oscilaciones en los bordes...")
-    lc_w_par_global = apply_wavelet(lc_par_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_impar_global = apply_wavelet(lc_impar_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_par_local = apply_wavelet(lc_par_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_impar_local = apply_wavelet(lc_impar_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
 
     headers = {
         "period": row.koi_period,
@@ -118,14 +132,14 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         "border_cut":cut_border_percent,
         "Kepler_name":row.kepoi_name
     }
-    lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepid, headers, lc_w_par_global, lc_w_impar_global, lc_w_par_gobal)
+    lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepid, headers, lc_w_even_global, lc_w_odd_global, lc_w_even_global, lc_w_odd_global)
 
     if(plot):
         logger.info('graficando wavelets obtenidas...')
-        lc_w_par_global.plot()
-        lc_w_impar_global.plot()
-        lc_w_par_local.plot()
-        lc_w_impar_local.plot()
+        lc_w_even_global.plot()
+        lc_w_odd_global.plot()
+        lc_w_even_local.plot()
+        lc_w_odd_local.plot()
     if(plot_comparative):
         logger.info('graficando wavelets obtenidas...')
         lc_wavelet_collection.plot_comparative()
@@ -146,5 +160,12 @@ def process_func_continue(row):
         import sys; sys.__breakpointhook__()
 
 
-result = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=16, total=len(df), error_behavior='coerce', need_serialize=True)
+# result = []
+# for _, row in tqdm(df.iterrows(), total=len(df)):
+#     result.append(process_func(row))
+result = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=16, total=len(df), error_behavior='coerce')
+
+from IPython import embed; embed()
 # process_light_curve
+
+# %%
