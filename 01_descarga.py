@@ -23,6 +23,7 @@ import lightkurve as lk
 import numpy as np
 import pywt
 import pickle
+import time
 import os
 import matplotlib.pyplot as plt
 from LCWavelet import *
@@ -41,11 +42,13 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         sigma=20, sigma_upper=4,
                         wavelet_window=None,
                         wavelet_family=None, levels=None, cut_border_percent=0.1,
-                        plot = False, plot_comparative=False,save=False, path=""):
+                        plot = False, plot_comparative=False,save=False, path="") -> LightCurveWaveletGlobalLocalCollection:
 
     
     FORMAT = '%(asctime)s [%(levelname)s] :%(name)s:%(message)s'
     logger = logging.getLogger(f"process_light_curve[{os.getpid()}]")
+    if logger.hasHandlers():
+        logger.handlers.clear()
     formatter =  logging.Formatter(FORMAT)
     
     logger.setLevel("INFO")
@@ -77,14 +80,14 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_odd.sort("time")
     lc_even.sort("time")
     
-    lc_odd_global_flux =  global_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, normalize=False)
-    lc_even_global_flux =  global_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, normalize=False)
+    lc_odd_global_flux =  global_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, normalize=True)
+    lc_even_global_flux =  global_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, normalize=True)
     lc_odd_global = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_global_flux)), flux=lc_odd_global_flux)
     lc_even_global = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_global_flux)), flux=lc_even_global_flux)
     
-    lc_odd_local_flux =  local_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, row.koi_duration, normalize=False)
-    lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration, normalize=False)
-    lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux)
+    lc_odd_local_flux =  local_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, row.koi_duration, normalize=True)
+    lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration, normalize=True)
+    lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux,)
     lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
 
     if wavelet_window is not None:
@@ -148,8 +151,10 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_wavelet_collection.save(path)
     return lc_wavelet_collection
 
-
-process_func =  partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=False, plot_comparative=False, save=True, path="all_data_2024-06-01/")
+path = "all_data_2024-06-08/"
+download_dir="data3/"
+process_func =  partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=False, plot_comparative=False,
+                        save=True, path=path, download_dir=download_dir)
 
 def process_func_continue(row):
     try:
@@ -163,7 +168,15 @@ def process_func_continue(row):
 # result = []
 # for _, row in tqdm(df.iterrows(), total=len(df)):
 #     result.append(process_func(row))
-result = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=16, total=len(df), error_behavior='coerce')
+results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=16, total=len(df), error_behavior='coerce')
+
+failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
+failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
+
+now = int(time.time())
+df_fail = df.loc[failures_idx].copy()
+df_fail['exception'] = failures
+df_fail.to_csv(path+f"/failure_{now}.csv", index=False)
 
 from IPython import embed; embed()
 # process_light_curve
