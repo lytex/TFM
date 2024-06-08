@@ -44,8 +44,8 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         plot = False, plot_comparative=False,save=False, path=""):
 
     
-    FORMAT = '%(asctime)s [%(levelname)s] [%(process)d] :%(name)s:%(message)s'
-    logger = logging.getLogger(__name__)
+    FORMAT = '%(asctime)s [%(levelname)s] :%(name)s:%(message)s'
+    logger = logging.getLogger(f"process_light_curve[{os.getpid()}]")
     formatter =  logging.Formatter(FORMAT)
     
     logger.setLevel("INFO")
