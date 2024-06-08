@@ -131,3 +131,102 @@ def bin_and_aggregate(x,
     bin_max += bin_spacing
 
   return result, bin_counts
+
+def generate_view(time,
+                  values,
+                  num_bins,
+                  bin_width,
+                  t_min,
+                  t_max,
+                  normalize=True):
+  """Generates a view of a phase-folded and binned light curve.
+
+  Args:
+    time: 1D NumPy array of time values, sorted in ascending order.
+    values: N-dimensional NumPy array with the same length as time.
+    num_bins: The number of intervals to divide the time axis into.
+    bin_width: The width of each bin on the time axis.
+    t_min: The inclusive leftmost value to consider on the time axis.
+    t_max: The exclusive rightmost value to consider on the time axis.
+    normalize: Whether to center the median at 0 and minimum value at -1.
+
+  Returns:
+    NumPy array of length num_bins containing the aggregated values in uniformly
+    spaced bins on the phase-folded time axis.
+  """
+  view, bin_counts = binning.bin_and_aggregate(time, values, num_bins,
+                                               bin_width, t_min, t_max)
+  # Empty bins fall back to the global median.
+  view = np.where(bin_counts > 0, view, np.median(values))
+
+  if normalize:
+    view -= np.median(view, axis=0)
+    view /= np.abs(np.min(view, axis=0))
+
+  return view
+
+
+
+def global_view(time, values, period, num_bins=2001, bin_width_factor=1 / 2001, normalize=True):
+  """Generates a 'global view' of a phase folded light curve.
+
+  See Section 3.3 of Shallue & Vanderburg, 2018, The Astronomical Journal.
+  http://iopscience.iop.org/article/10.3847/1538-3881/aa9e09/meta
+
+  Args:
+    time: 1D NumPy array of time values, sorted in ascending order.
+    values: N-dimensional NumPy array with the same length as time.
+    period: The period of the event (in days).
+    num_bins: The number of intervals to divide the time axis into.
+    bin_width_factor: Width of the bins, as a fraction of period.
+
+  Returns:
+    NumPy array of length num_bins containing the aggregated values in uniformly
+    spaced bins on the phase-folded time axis.
+  """
+  return generate_view(
+      time,
+      values,
+      num_bins=num_bins,
+      bin_width=period * bin_width_factor,
+      t_min=-period / 2,
+      t_max=period / 2,
+      normalize=normalize)
+
+
+def local_view(time,
+               values,
+               period,
+               duration,
+               num_bins=201,
+               bin_width_factor=0.16,
+               num_durations=4,
+               normalize=True):
+  """Generates a 'local view' of a phase folded light curve.
+
+  See Section 3.3 of Shallue & Vanderburg, 2018, The Astronomical Journal.
+  http://iopscience.iop.org/article/10.3847/1538-3881/aa9e09/meta
+
+  Args:
+    time: 1D NumPy array of time values, sorted in ascending order.
+    values: N-dimensional NumPy array with the same length as time.
+    period: The period of the event (in days).
+    duration: The duration of the event (in days).
+    num_bins: The number of intervals to divide the time axis into.
+    bin_width_factor: Width of the bins, as a fraction of duration.
+    num_durations: The number of durations to consider on either side of 0 (the
+      event is assumed to be centered at 0).
+
+  Returns:
+    NumPy array of length num_bins containing the aggregated values in uniformly
+    spaced bins on the phase-folded time axis.
+  """
+  return generate_view(
+      time,
+      values,
+      num_bins=num_bins,
+      bin_width=duration * bin_width_factor,
+      t_min=max(-period / 2, -duration * num_durations),
+      t_max=min(period / 2, duration * num_durations),
+      normalize=normalize)
+

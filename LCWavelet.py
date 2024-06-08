@@ -90,6 +90,30 @@ class LightCurveWaveletCollection():
         plt.show()
 
 
+class LightCurveWaveletGlobalLocalCollection():
+    def __init__(self,id,headers,lc_par_global,lc_impar_global, lc_par_local, lc_impar_local):
+        self.pliegue_par_global = lc_par_global
+        self.pliegue_impar_global = lc_impar_global
+        self.pliegue_par_local = lc_par_local
+        self.pliegue_impar_local = lc_impar_local
+        self.kepler_id = id
+        self.headers = headers
+
+    def save(self, path = ""):
+        file_name = path + '/kic '+str(self.kepler_id)+'-'+self.headers['Kepler_name']+'.pickle'
+        with open(file_name, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def from_pickle(cls):
+        if path.endswith(".pickle"):
+            with open(path, "rb") as f:
+                w_loaded = pickle.load(f)
+            return w_loaded
+
+
+
+
 def fold_curve(light_curve_collection, period, epoch, sigma = 20, sigma_upper = 4):
     """
     Toma la coleccion de la curvas entregadas, las pliega y devuelve una sola con todos los datos.
@@ -110,7 +134,7 @@ def fold_curve(light_curve_collection, period, epoch, sigma = 20, sigma_upper = 
     ----------
     una sola curva de luz
     """
-    lc_collection = lk.LightCurveCollection([lc.remove_outliers(sigma=20, sigma_upper=4) for lc in light_curve_collection])
+    # lc_collection = lk.LightCurveCollection([lc.remove_outliers(sigma=20, sigma_upper=4) for lc in light_curve_collection])
     
     lc_ro = lc_collection.stitch()
     
