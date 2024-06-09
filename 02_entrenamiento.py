@@ -23,6 +23,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, concatenate,Conv1D, Flatten,Dropout , BatchNormalization, MaxPooling1D
 from tensorflow.keras.models import Model, Sequential
+from keras.utils import to_categorical
+from sklearn.model_selection import train_test_split
 
 path = "all_data_2024-06-01/"
 files = [file for file in os.listdir(path) if file.endswith(".pickle")]
@@ -64,62 +66,6 @@ pliegue_impar_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_i
 
 
 inputs = (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local)
-
-
-  # %%
-  def _build_cnn_layers(self, inputs, hparams, scope="cnn"):
-    """Builds convolutional layers.
-
-    The layers are defined by convolutional blocks with pooling between blocks
-    (but not within blocks). Within a block, all layers have the same number of
-    filters, which is a constant multiple of the number of filters in the
-    previous block. The kernel size is fixed throughout.
-
-    Args:
-      inputs: A Tensor of shape [batch_size, length] or
-        [batch_size, length, ndims].
-      hparams: Object containing CNN hyperparameters.
-      scope: Prefix for operation names.
-
-    Returns:
-      A Tensor of shape [batch_size, output_size], where the output size depends
-      on the input size, kernel size, number of filters, number of layers,
-      convolution padding type and pooling.
-    """
-    with tf.name_scope(scope):
-      net = inputs
-      if net.shape.rank == 2:
-        net = tf.expand_dims(net, -1)  # [batch, length] -> [batch, length, 1]
-      if net.shape.rank != 3:
-        raise ValueError(
-            "Expected inputs to have rank 2 or 3. Got: {}".format(inputs))
-      for i in range(hparams.cnn_num_blocks):
-        num_filters = int(hparams.cnn_initial_num_filters *
-                          hparams.cnn_block_filter_factor**i)
-        with tf.name_scope("block_{}".format(i + 1)):
-          for j in range(hparams.cnn_block_size):
-            conv_op = tf.keras.layers.Conv1D(
-                filters=num_filters,
-                kernel_size=int(hparams.cnn_kernel_size),
-                padding=hparams.convolution_padding,
-                activation=tf.nn.relu,
-                name="conv_{}".format(j + 1))
-            net = conv_op(net)
-
-          if hparams.pool_size > 1:  # pool_size 0 or 1 denotes no pooling
-            pool_op = tf.keras.layers.MaxPool1D(
-                pool_size=int(hparams.pool_size),
-                strides=int(hparams.pool_strides),
-                name="pool")
-            net = pool_op(net)
-
-      # Flatten.
-      net.shape.assert_has_rank(3)
-      net_shape = net.shape.as_list()
-      output_dim = net_shape[1] * net_shape[2]
-      net = tf.reshape(net, [-1, output_dim], name="flatten")
-
-    return net
 
 
 # %%
@@ -178,7 +124,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
         block.add(Flatten())
         net["local_impar"].append(block)
                              
-    model_f = concatenate([m.output for m in net["local_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["global_par"]], axis=-1)
+    model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
     model_f = Dense(512,activation=activation)(model_f)
     model_f = Dense(512,activation=activation)(model_f)
@@ -186,7 +132,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
     model_f = Dense(512,activation=activation)(model_f)
     model_f = Dense(len(classes),activation='softmax')(model_f)
     
-    model_f = Model([[m.input for m in net["local_impar"]], [m.input for m in net["local_par"]]  , [m.input for m in net["global_impar"]], [m.input for m in net["global_par"]]],model_f)
+    model_f = Model([[m.input for m in net["global_par"]], [m.input for m in net["global_impar"]]  , [m.input for m in net["local_par"]], [m.input for m in net["local_impar"]]],model_f)
     # model_f = Model([[model_p_7.input,model_i_7.input],[model_p_8.input,model_i_8.input]],model_f)
 
 
@@ -283,13 +229,36 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
       model_f.summary()
     return model_f
 
+
+
+flatten = []
+for (n, data) in sorted(pliegue_par_global.items(), key=lambda d: d[0]):
+    flatten.append(data)
+    
+for (n, data) in sorted(pliegue_impar_global.items(), key=lambda d: d[0]):
+    flatten.append(data)
+
+for (n, data) in sorted(pliegue_impar_local.items(), key=lambda d: d[0]):
+    flatten.append(data)
+    
+for (n, data) in sorted(pliegue_par_local.items(), key=lambda d: d[0]):
+    flatten.append(data)
+
+y = np.array([lc.headers['class'] for lc in lightcurves])
 output_classes = np.unique([lc.headers['class'] for lc in lightcurves])
+class2num = {label: n for n, label in enumerate(output_classes)}
+num2class = {n: label for n, label in enumerate(output_classes)}
+
+from keras.utils import to_categorical
+y = to_categorical([class2num[x] for x in y], num_classes=3)
+from sklearn.model_selection import train_test_split
+
+res = train_test_split(*(flatten+[y]), test_size=0.3, shuffle=False)
+*X_train, y_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
+*X_test, y_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
+
 model_1 = gen_model_2_levels(inputs, output_classes)
 model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=['accuracy','binary_crossentropy'])
-# history_1 = model_1.fit(X_train_8, y_train_8, epochs=1000, batch_size=64, validation_data=(X_test_8, y_test_8))
+history_1 = model_1.fit(X_train, y_train, epochs=1000, batch_size=64, validation_data=(X_test, y_test))
 
 # %%
-X =  
-y = np.array([lc.headers['class'] for lc in lightcurves])
-# for lc in lightcurves:
-#  print (lc.headers['class'])

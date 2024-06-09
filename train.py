@@ -41,10 +41,11 @@ print(f"datos entrenamiento:{len(X_train_8[0])}, labels:{len(y_train_8)}")
 print(f"datos validacion:{len(X_test_8[0])}, labels:{len(y_test_8)}")
 print(f"input shape par:{np.shape(X_train_8[0])} , inpar:{np.shape(X_train_8[0])}")
 
+
 # %%
-from binning import bin_and_aggregate
-np.squeeze(X_train_8).shape
-bin_and_aggregate(X_train_8[0][:, :, 0].shape
+# from binning import bin_and_aggregate
+# np.squeeze(X_train_8).shape
+# bin_and_aggregate(X_train_8[0][:, :, 0].shape
 # bin_and_aggregate
 
 # %% [markdown] id="4QdUCI1qmkzS"
@@ -103,6 +104,9 @@ def gen_model_1_level(ds,activation = 'relu'):
 model_1 =  gen_model_1_level(X_train_8 ,activation = tf.keras.layers.LeakyReLU())
 model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=['accuracy','binary_crossentropy'])
 history_1 = model_1.fit(X_train_8, y_train_8, epochs=1000, batch_size=64, validation_data=(X_test_8, y_test_8))
+
+# %%
+np.array(X_train_8).shape, np.shape(X_train_8)[2:], np.array(y_train_8).shape
 
 # %% colab={"base_uri": "https://localhost:8080/", "height": 563} id="s-vaJmZIe9dM" outputId="bf223032-ebbc-4286-b623-64cf808cb4cb"
 plot_results(history_1)
