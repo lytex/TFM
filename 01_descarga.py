@@ -90,27 +90,19 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux,)
     lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
 
-    if wavelet_window is not None:
-        logger.info('Aplicando ventana ...')
-        lc_impar_global = cut_wavelet(lc_odd_global, wavelet_window)
-        lc_par_global = cut_wavelet(lc_even_global, wavelet_window)
-        lc_impar_local = cut_wavelet(lc_odd_local, wavelet_window)
-        lc_par_local = cut_wavelet(lc_even_local, wavelet_window)
-    else:
-        lc_impar_global = lc_odd_global
-        lc_par_global = lc_even_global
-        lc_impar_local = lc_odd_local
-        lc_par_local = lc_even_local
-        lc_impar_local = lc_odd_local
-        lc_par_local = lc_even_local
-
-    
     # para quitar oscilaciones en los bordes (quizás mejor no guardar los datos con esto quitado)
-    logger.info("Quitando oscilaciones en los bordes...")
-    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    if wavelet_window is not None:
+        logger.info("Quitando oscilaciones en los bordes en la ventana seleccionada...")
+        lc_odd_global = cut_wavelet(lc_odd_global, wavelet_window)
+        lc_even_global = cut_wavelet(lc_even_global, wavelet_window)
+        lc_odd_local = cut_wavelet(lc_odd_local, wavelet_window)
+        lc_even_local = cut_wavelet(lc_even_local, wavelet_window)
+    
+    logger.info("Calculando wavelets...")
+    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels, cut_border_percent=cut_border_percent, levels=levels)
+    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels, cut_border_percent=cut_border_percent, levels=levels)
+    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels, cut_border_percent=cut_border_percent, levels=levels)
+    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels, cut_border_percent=cut_border_percent, levels=levels)
 
     headers = {
         "period": row.koi_period,
@@ -135,7 +127,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         "border_cut":cut_border_percent,
         "Kepler_name":row.kepoi_name
     }
-    lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepid, headers, lc_w_even_global, lc_w_odd_global, lc_w_even_global, lc_w_odd_global)
+    lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepid, headers, lc_w_even_global, lc_w_odd_global, lc_w_even_global, lc_w_odd_global, levels)
 
     if(plot):
         logger.info('graficando wavelets obtenidas...')
