@@ -19,23 +19,33 @@ warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
 from LCWavelet import *
 from tqdm import tqdm
+from parallelbar import progress_map
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, concatenate,Conv1D, Flatten,Dropout , BatchNormalization, MaxPooling1D
 from tensorflow.keras.models import Model, Sequential
 from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
+from functools import partial
 
 path = "all_data_2024-06-01/"
 files = [file for file in os.listdir(path) if file.endswith(".pickle")]
 lightcurves = []
-for file in tqdm(files):
+
+def load_files(file, path):
     global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
     try:
         getattr(global_local, "levels")
     except AttributeError:
         global_local.levels = [1, 2, 3, 4]
-    lightcurves.append(global_local)
+    return global_local
+
+func = partial(load_files, path=path)
+
+# lightcurves = progress_map(func, files, n_cpu=128, total=len(files), executor='processes', error_behavior='raise')
+
+for file in tqdm(files):
+    lightcurves.append(func(file))
 
 # %%
 from collections import defaultdict
@@ -259,6 +269,8 @@ res = train_test_split(*(flatten+[y]), test_size=0.3, shuffle=False)
 
 model_1 = gen_model_2_levels(inputs, output_classes)
 model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=['accuracy','binary_crossentropy'])
-history_1 = model_1.fit(X_train, y_train, epochs=1000, batch_size=64, validation_data=(X_test, y_test))
 
-# %%
+log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+
+history_1 = model_1.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test))
