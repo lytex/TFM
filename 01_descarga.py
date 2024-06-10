@@ -178,10 +178,15 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 
     if(plot):
         logger.info('graficando wavelets obtenidas...')
-        lc_wavelet_collection.plot()
         if plot_folder is not None:
-            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet.png")
+            figure_paths = (f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_gi.png",
+             f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_gp.png",
+             f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_li.png",
+             f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_lp.png",
+             )
+            lc_wavelet_collection.plot(figure_paths=figure_paths)
         else:
+            lc_wavelet_collection.plot()
             plt.show()
     if(plot_comparative):
         logger.info('graficando wavelets obtenidas...')

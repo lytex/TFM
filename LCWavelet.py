@@ -117,10 +117,12 @@ class LightCurveGlobalLocalCollection():
             return w_loaded
 
     def plot(self, **kwargs):
-        self.pliegue_par_global.plot(**kwargs)
-        self.pliegue_impar_global.plot(**kwargs)
-        self.pliegue_par_local.plot(**kwargs)
-        self.pliegue_impar_local.plot(**kwargs)
+
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
+        self.pliegue_impar_global.plot(**{"ax": ax1, "title": "global impar", **kwargs})
+        self.pliegue_par_global.plot(**{"ax": ax2, "title": "global par",  **kwargs})
+        self.pliegue_impar_local.plot(**{"ax": ax3, "title": "local impar", **kwargs})
+        self.pliegue_par_local.plot(**{"ax": ax4, "title": "local par", **kwargs})
         
     def scatter(self, **kwargs):
         self.pliegue_par_global.scatter(**kwargs)
@@ -157,10 +159,21 @@ class LightCurveWaveletGlobalLocalCollection():
             return w_loaded
 
     def plot(self, **kwargs):
-        self.pliegue_par_global.plot(**kwargs)
-        self.pliegue_impar_global.plot(**kwargs)
-        self.pliegue_par_local.plot(**kwargs)
-        self.pliegue_impar_local.plot(**kwargs)
+        if kwargs.get("figure_paths") is not None:
+            figure_paths = kwargs.get("figure_paths")
+            self.pliegue_impar_global.plot()
+            plt.savefig(figure_paths[0])
+            self.pliegue_par_global.plot()
+            plt.savefig(figure_paths[1])
+            self.pliegue_impar_local.plot()
+            plt.savefig(figure_paths[2])
+            self.pliegue_par_local.plot()
+            plt.savefig(figure_paths[3])
+        else:
+            self.pliegue_impar_global.plot()
+            self.pliegue_par_global.plot()
+            self.pliegue_impar_local.plot()
+            self.pliegue_par_local.plot()
         
     def scatter(self, **kwargs):
         self.pliegue_par_global.scatter(**kwargs)
