@@ -15,6 +15,9 @@
 
 # %%
 # %pdb on
+# %matplotlib agg
+
+from IPython.display import display
 import warnings
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
@@ -42,9 +45,30 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         sigma=20, sigma_upper=4,
                         wavelet_window=None,
                         wavelet_family=None, levels=None, cut_border_percent=0.1,
-                        plot = False, plot_comparative=False,save=False, path="") -> LightCurveWaveletGlobalLocalCollection:
+                        plot = False, plot_comparative=False,save=False, path="", plot_folder=None) -> LightCurveWaveletGlobalLocalCollection:
+    """
 
-    
+    Args:
+        row Fila del csv a procesar: 
+        mission (): misión de la que descargarse los  
+        download_dir (): directorio de descarga de lightkurve  (si ya existe un archivo en esta ruta no vuelve a bajarlo )
+        sigma (): 
+        sigma_upper (): 
+        wavelet_window (): 
+        wavelet_family (): 
+        levels (): 
+        cut_border_percent (): 
+        plot (): 
+        plot_comparative (): 
+        save (): si es True, guarda los datos procesados en el directorio path
+        path (): directorio donde guardar los datos
+        plot_folder (): Por defecto None. Si no es None, entonces en vez de enseñar el gráfico lo guarda en {plot_folder}/plot/
+
+    Returns: LightCurveWaveletGlobalLocalCollection
+
+    """
+
+
     FORMAT = '%(asctime)s [%(levelname)s] :%(name)s:%(message)s'
     logger = logging.getLogger(f"process_light_curve[{os.getpid()}]")
     if logger.hasHandlers():
@@ -55,6 +79,9 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
+
+    if plot_folder is not None:
+        os.makedirs(os.path.dirname(f"{plot_folder}/plot/"), exist_ok=True)
     
     # 1. Bajarse los datos con lightkurve o cargarlos si ya están bajados
     logger.info(f"Bajando datos para {mission} {row.kepid}...");
@@ -71,6 +98,13 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     # 3. Plegar en fase y dividir en pares e impares
     logger.info("Plegando en fase pares/impares...")
     lc_fold = lc_nonans.fold(period = row.koi_period,epoch_time = row.koi_time0bk)
+    if plot:
+        logger.info('graficando series plegadas en fase...')
+        lc_fold.plot()
+        if plot_folder is not None:
+            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_01_plegado.png")
+        else:
+            plt.show()
     lc_odd = lc_fold[lc_fold.odd_mask]
     lc_even = lc_fold[lc_fold.even_mask]
 
@@ -90,6 +124,14 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux,)
     lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
 
+    if plot:
+        logger.info('graficando series bineadas...')
+        LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local).plot()
+        if plot_folder is not None:
+            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_02_bineado.png")
+        else:
+            plt.show()
+
     # para quitar oscilaciones en los bordes (quizás mejor no guardar los datos con esto quitado)
     if wavelet_window is not None:
         logger.info("Quitando oscilaciones en los bordes en la ventana seleccionada...")
@@ -99,10 +141,10 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_even_local = cut_wavelet(lc_even_local, wavelet_window)
     
     logger.info("Calculando wavelets...")
-    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels, cut_border_percent=cut_border_percent, levels=levels)
-    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels, cut_border_percent=cut_border_percent, levels=levels)
-    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels, cut_border_percent=cut_border_percent, levels=levels)
-    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels, cut_border_percent=cut_border_percent, levels=levels)
+    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
 
     headers = {
         "period": row.koi_period,
@@ -127,14 +169,20 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         "border_cut":cut_border_percent,
         "Kepler_name":row.kepoi_name
     }
-    lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepid, headers, lc_w_even_global, lc_w_odd_global, lc_w_even_global, lc_w_odd_global, levels)
+    lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepid, headers,
+                                                                   lc_w_even_global,
+                                                                   lc_w_odd_global,
+                                                                   lc_w_even_local,
+                                                                   lc_w_odd_local,
+                                                                   levels)
 
     if(plot):
         logger.info('graficando wavelets obtenidas...')
-        lc_w_even_global.plot()
-        lc_w_odd_global.plot()
-        lc_w_even_local.plot()
-        lc_w_odd_local.plot()
+        lc_wavelet_collection.plot()
+        if plot_folder is not None:
+            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet.png")
+        else:
+            plt.show()
     if(plot_comparative):
         logger.info('graficando wavelets obtenidas...')
         lc_wavelet_collection.plot_comparative()
@@ -145,8 +193,8 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 
 path = "all_data_2024-06-08/"
 download_dir="data3/"
-process_func =  partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=False, plot_comparative=False,
-                        save=True, path=path, download_dir=download_dir)
+process_func =  partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=True, plot_comparative=False,
+                        save=True, path=path, download_dir=download_dir, plot_folder="all_data_2024-06-08/")
 
 def process_func_continue(row):
     try:
@@ -157,9 +205,9 @@ def process_func_continue(row):
         import sys; sys.__breakpointhook__()
 
 
-# result = []
+# results = []
 # for _, row in tqdm(df.iterrows(), total=len(df)):
-#     result.append(process_func(row))
+#     results.append(process_func(row))
 results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=16, total=len(df), error_behavior='coerce')
 
 failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]

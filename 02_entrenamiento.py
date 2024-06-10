@@ -19,6 +19,7 @@ warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
 from LCWavelet import *
 from tqdm import tqdm
+from collections import defaultdict
 from parallelbar import progress_map
 import numpy as np
 import tensorflow as tf
@@ -27,6 +28,7 @@ from tensorflow.keras.models import Model, Sequential
 from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from functools import partial
+import datetime
 
 path = "all_data_2024-06-01/"
 files = [file for file in os.listdir(path) if file.endswith(".pickle")]
@@ -48,7 +50,6 @@ for file in tqdm(files):
     lightcurves.append(func(file))
 
 # %%
-from collections import defaultdict
 
 pliegue_par_global = defaultdict(list)
 pliegue_impar_global = defaultdict(list)
@@ -259,9 +260,7 @@ output_classes = np.unique([lc.headers['class'] for lc in lightcurves])
 class2num = {label: n for n, label in enumerate(output_classes)}
 num2class = {n: label for n, label in enumerate(output_classes)}
 
-from keras.utils import to_categorical
 y = to_categorical([class2num[x] for x in y], num_classes=3)
-from sklearn.model_selection import train_test_split
 
 res = train_test_split(*(flatten+[y]), test_size=0.3, shuffle=False)
 *X_train, y_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
@@ -273,4 +272,9 @@ model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-history_1 = model_1.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test))
+cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=log_dir,
+                                                 save_weights_only=True,
+                                                 verbose=1)
+
+history_1 = model_1.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test),
+                        callbacks=[tensorboard_callback, cp_callback])

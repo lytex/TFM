@@ -6,6 +6,7 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 from LCWavelet import *
+from lightkurve.lightcurve import FoldedLightCurve
 
 class LightCurveWaveletFoldCollection():
   
@@ -43,7 +44,7 @@ class LightCurveWaveletFoldCollection():
                 axarr[i, 0].set_title("Approximation coefficients", fontsize=14)
                 axarr[i, 1].set_title("Detail coefficients", fontsize=14)
             axarr[i, 1].set_yticklabels([])
-        plt.show()
+        # plt.show()
 
 class LightCurveWaveletCollection():
     def __init__(self,id,headers,lc_par,lc_inpar):
@@ -90,8 +91,12 @@ class LightCurveWaveletCollection():
         plt.show()
 
 
-class LightCurveWaveletGlobalLocalCollection():
-    def __init__(self,id,headers,lc_par_global,lc_impar_global, lc_par_local, lc_impar_local):
+class LightCurveGlobalLocalCollection():
+    def __init__(self,id, headers,
+                 lc_par_global: FoldedLightCurve,
+                 lc_impar_global: FoldedLightCurve,
+                 lc_par_local: FoldedLightCurve,
+                 lc_impar_local: FoldedLightCurve):
         self.pliegue_par_global = lc_par_global
         self.pliegue_impar_global = lc_impar_global
         self.pliegue_par_local = lc_par_local
@@ -110,6 +115,58 @@ class LightCurveWaveletGlobalLocalCollection():
             with open(path, "rb") as f:
                 w_loaded = pickle.load(f)
             return w_loaded
+
+    def plot(self, **kwargs):
+        self.pliegue_par_global.plot(**kwargs)
+        self.pliegue_impar_global.plot(**kwargs)
+        self.pliegue_par_local.plot(**kwargs)
+        self.pliegue_impar_local.plot(**kwargs)
+        
+    def scatter(self, **kwargs):
+        self.pliegue_par_global.scatter(**kwargs)
+        self.pliegue_impar_global.scatter(**kwargs)
+        self.pliegue_par_local.scatter(**kwargs)
+        self.pliegue_impar_local.scatter(**kwargs)
+
+
+class LightCurveWaveletGlobalLocalCollection():
+    def __init__(self,id, headers,
+                 lc_par_global: LightCurveWaveletFoldCollection,
+                 lc_impar_global: LightCurveWaveletFoldCollection,
+                 lc_par_local: LightCurveWaveletFoldCollection,
+                 lc_impar_local: LightCurveWaveletFoldCollection,
+                 levels):
+        self.pliegue_par_global = lc_par_global
+        self.pliegue_impar_global = lc_impar_global
+        self.pliegue_par_local = lc_par_local
+        self.pliegue_impar_local = lc_impar_local
+        self.kepler_id = id
+        self.headers = headers
+        self.levels = levels
+
+    def save(self, path = ""):
+        file_name = path + '/kic '+str(self.kepler_id)+'-'+self.headers['Kepler_name']+'.pickle'
+        with open(file_name, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def from_pickle(cls, path):
+        if path.endswith(".pickle"):
+            with open(path, "rb") as f:
+                w_loaded = pickle.load(f)
+            return w_loaded
+
+    def plot(self, **kwargs):
+        self.pliegue_par_global.plot(**kwargs)
+        self.pliegue_impar_global.plot(**kwargs)
+        self.pliegue_par_local.plot(**kwargs)
+        self.pliegue_impar_local.plot(**kwargs)
+        
+    def scatter(self, **kwargs):
+        self.pliegue_par_global.scatter(**kwargs)
+        self.pliegue_impar_global.scatter(**kwargs)
+        self.pliegue_par_local.scatter(**kwargs)
+        self.pliegue_impar_local.scatter(**kwargs)
 
 
 
