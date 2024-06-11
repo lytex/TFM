@@ -103,6 +103,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_fold.plot()
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_01_plegado.png")
+            plt.close('all')
         else:
             plt.show()
     lc_odd = lc_fold[lc_fold.odd_mask]
@@ -129,6 +130,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local).plot()
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_02_bineado.png")
+            plt.close('all')
         else:
             plt.show()
 
@@ -196,24 +198,24 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_wavelet_collection.save(path)
     return lc_wavelet_collection
 
-path = "all_data_2024-06-08/"
+path = "all_data_2024-06-11/"
 download_dir="data3/"
 process_func =  partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=True, plot_comparative=False,
-                        save=True, path=path, download_dir=download_dir, plot_folder="all_data_2024-06-08/")
+                        save=True, path=path, download_dir=download_dir, plot_folder="all_data_2024-06-11/")
 
 def process_func_continue(row):
     try:
         return process_func(row)
-    except Exception:
+    except Exception as e:
         print(f"Exception on {row.kepid}")
         import traceback; print("".join(traceback.format_stack()))
-        import sys; sys.__breakpointhook__()
+        return e
 
 
 # results = []
 # for _, row in tqdm(df.iterrows(), total=len(df)):
-#     results.append(process_func(row))
-results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=16, total=len(df), error_behavior='coerce')
+#     results.append(process_func_continue(row))
+results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=4, total=len(df), error_behavior='coerce')
 
 failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
 failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
