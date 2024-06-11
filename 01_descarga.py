@@ -229,3 +229,5 @@ from IPython import embed; embed()
 # process_light_curve
 
 # %%
+df[['rowid', 'koi_disposition']].groupby('koi_disposition')['rowid'].count(), df[['rowid', 'koi_pdisposition']].groupby('koi_pdisposition')['rowid'].count()
+# df.keys()
