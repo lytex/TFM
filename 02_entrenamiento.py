@@ -36,10 +36,10 @@ lightcurves = []
 
 def load_files(file, path):
     global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
-    try:
-        getattr(global_local, "levels")
-    except AttributeError:
-        global_local.levels = [1, 2, 3, 4]
+    # try:
+    #     getattr(global_local, "levels")
+    # except AttributeError:
+    #     global_local.levels = [1, 2, 3, 4]
     return global_local
 
 func = partial(load_files, path=path)
@@ -57,9 +57,10 @@ pliegue_par_local = defaultdict(list)
 pliegue_impar_local = defaultdict(list)
 
 for lc in lightcurves:
-    for level in lc.levels:
+    for level in lc.levels_global:
         pliegue_par_global[level].append(lc.pliegue_par_global.get_approximation_coefficent(level=level))
         pliegue_impar_global[level].append(lc.pliegue_impar_global.get_approximation_coefficent(level=level))
+    for level in lc.levels_local:
         pliegue_par_local[level].append(lc.pliegue_par_local.get_approximation_coefficent(level=level))
         pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
         
@@ -161,81 +162,53 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
     # model_f = Dense(1,activation='sigmoid')(model_f)
     # model_f = Model([[model_p_7.input,model_i_7.input],[model_p_8.input,model_i_8.input]],model_f)
 
-    # tamaño nivel 7
-    input_shape_1 = np.shape(pliegue_par_global[1])[1:]
-    # tamaño nivel 8
-    input_shape_2 = np.shape(pliegue_par_global[2])[1:]
-   
-    # rama par level 7
-    model_p_7 = tf.keras.Sequential()
-    model_p_7.add(Conv1D(16, 5, activation=activation, input_shape=input_shape_1))
-    model_p_7.add(Conv1D(16, 5, activation=activation)) 
-    model_p_7.add(MaxPooling1D(pool_size=3, strides=1)) 
-    model_p_7.add(Conv1D(32,5, activation=activation))
-    model_p_7.add(Conv1D(32,5, activation=activation))
-    model_p_7.add(MaxPooling1D(pool_size=3, strides=1))
-    model_p_7.add(Conv1D(64,5, activation=activation))
-    model_p_7.add(Conv1D(64,5, activation=activation))
-    model_p_7.add(MaxPooling1D(pool_size=3, strides=1))
-    model_p_7.add(Conv1D(128,5, activation=activation))
-    model_p_7.add(Conv1D(128,5, activation=activation))
-    model_p_7.add(MaxPooling1D(pool_size=3, strides=1))
-    model_p_7.add(Flatten())
+def gen_astronet(inputs, classes, activation = 'relu',summary=False):
     
-    # rama par level 8
-    model_p_8 = tf.keras.Sequential()
-    model_p_8.add(Conv1D(16, 5, activation=activation, input_shape=input_shape_2))
-    model_p_8.add(Conv1D(16, 5, activation=activation)) 
-    model_p_8.add(MaxPooling1D(pool_size=3, strides=1)) 
-    model_p_8.add(Conv1D(32,5, activation=activation))
-    model_p_8.add(Conv1D(32,5, activation=activation))
-    model_p_8.add(MaxPooling1D(pool_size=3, strides=1))
-    model_p_8.add(Conv1D(64,5, activation=activation))
-    model_p_8.add(Conv1D(64,5, activation=activation))
-    model_p_8.add(MaxPooling1D(pool_size=3, strides=1))
-    model_p_8.add(Flatten())
-    
-    # rama impar level 7
-    model_i_7 = tf.keras.Sequential()
-    model_i_7.add(Conv1D(16, 5, activation=activation, input_shape=input_shape_1))
-    model_i_7.add(Conv1D(16, 5, activation=activation)) 
-    model_i_7.add(MaxPooling1D(pool_size=3, strides=1)) 
-    model_i_7.add(Conv1D(32,5, activation=activation))
-    model_i_7.add(Conv1D(32,5, activation=activation))
-    model_i_7.add(MaxPooling1D(pool_size=3, strides=1))
-    model_i_7.add(Conv1D(64,5, activation=activation))
-    model_i_7.add(Conv1D(64,5, activation=activation))
-    model_i_7.add(MaxPooling1D(pool_size=3, strides=1))
-    model_i_7.add(Conv1D(128,5, activation=activation))
-    model_i_7.add(Conv1D(128,5, activation=activation))
-    model_i_7.add(MaxPooling1D(pool_size=3, strides=1))
-    model_i_7.add(Flatten())
-    
-    # rama impar level 8
-    model_i_8 = tf.keras.Sequential()
-    model_i_8.add(Conv1D(16, 5, activation=activation, input_shape=input_shape_2))
-    model_i_8.add(Conv1D(16, 5, activation=activation)) 
-    model_i_8.add(MaxPooling1D(pool_size=3, strides=1)) 
-    model_i_8.add(Conv1D(32,5, activation=activation))
-    model_i_8.add(Conv1D(32,5, activation=activation))
-    model_i_8.add(MaxPooling1D(pool_size=3, strides=1))
-    model_i_8.add(Conv1D(64,5, activation=activation))
-    model_i_8.add(Conv1D(64,5, activation=activation))
-    model_i_8.add(MaxPooling1D(pool_size=3, strides=1))
-    model_i_8.add(Flatten())
+    (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
 
-    # Red profunda
-    model_f = concatenate([model_p_7.output,model_i_7.output,
-                           model_p_8.output,model_i_8.output], axis=-1)
+    input_shape_global = [x.shape for x in pliegue_par_global.values()]
+    assert input_shape_global == [x.shape for x in pliegue_impar_global.values()]
     
-    import sys; sys.__breakpointhook__()
-    model_f = BatchNormalization(axis=-1)(model_f)
+    input_shape_local = [x.shape for x in pliegue_par_local.values()]
+    assert input_shape_local == [x.shape for x in pliegue_impar_local.values()]
+
+    
+    global_layers = tf.keras.Sequential([
+        Conv1D(16, 5, activation=activation, input_shape=data.shape[1:],),
+        Conv1D(16, 5, activation=activation),
+        MaxPooling1D(pool_size=5, strides=2),
+        Conv1D(32, 5, activation=activation),
+        Conv1D(32, 5, activation=activation),
+        MaxPooling1D(pool_size=5, strides=2),
+        Conv1D(64, 5, activation=activation),
+        Conv1D(64, 5, activation=activation),
+        MaxPooling1D(pool_size=5, strides=2),
+        Conv1D(128, 5, activation=activation),
+        Conv1D(128, 5, activation=activation),
+        MaxPooling1D(pool_size=5, strides=2),
+        Conv1D(256, 5, activation=activation),
+        Conv1D(256, 5, activation=activation),
+        MaxPooling1D(pool_size=5, strides=2),
+    ]
+                                        
+    local_layers = tf.keras.Sequential([
+        Conv1D(16, 5, activation=activation, input_shape=data.shape[1:],),
+        Conv1D(16, 5, activation=activation),
+        MaxPooling1D(pool_size=7, strides=2),
+        Conv1D(32, 5, activation=activation),
+        Conv1D(32, 5, activation=activation),
+        MaxPooling1D(pool_size=7, strides=2),
+    ]
+    
+    model_f = concatenate([global_layers.output,
+                           local_layers.output], axis=-1)
+    
     model_f = Dense(512,activation=activation)(model_f)
     model_f = Dense(512,activation=activation)(model_f)
     model_f = Dense(512,activation=activation)(model_f)
     model_f = Dense(512,activation=activation)(model_f)
     model_f = Dense(1,activation='sigmoid')(model_f)
-    model_f = Model([[model_p_7.input,model_i_7.input],[model_p_8.input,model_i_8.input]],model_f)
+    model_f = Model([[global_layers.input,local_layers.input],model_f)
     if summary:
       model_f.summary()
     return model_f

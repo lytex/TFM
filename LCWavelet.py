@@ -33,7 +33,7 @@ class LightCurveWaveletFoldCollection():
         data = self._light_curve.flux.value
         plt.figure(figsize=(16, 4))
         plt.plot(time,data)
-        ig, axarr = plt.subplots(nrows=len(wavelet), ncols=2, figsize=(16,12))
+        fig, axarr = plt.subplots(nrows=len(wavelet), ncols=2, figsize=(16,12))
         for i,lc_w in enumerate(wavelet):
             (data, coeff_d) = lc_w
             axarr[i, 0].plot(data, 'r')
@@ -44,6 +44,7 @@ class LightCurveWaveletFoldCollection():
                 axarr[i, 0].set_title("Approximation coefficients", fontsize=14)
                 axarr[i, 1].set_title("Detail coefficients", fontsize=14)
             axarr[i, 1].set_yticklabels([])
+        return fig, axarr
         # plt.show()
 
 class LightCurveWaveletCollection():
@@ -75,7 +76,7 @@ class LightCurveWaveletCollection():
         plt.plot(light_curve_p.time.value,light_curve_p.flux.value,c='blue',label='par')
         plt.plot(light_curve_i.time.value,light_curve_i.flux.value,c='red',label='inpar')
         
-        ig, axarr = plt.subplots(nrows=len(wavelet_p), ncols=2, figsize=(26,26))
+        fig, axarr = plt.subplots(nrows=len(wavelet_p), ncols=2, figsize=(26,26))
         for i,zip_curves in enumerate(zip(wavelet_p,wavelet_i)):
             (data_p, coeff_p),(data_i, coeff_i) = zip_curves
             axarr[i, 0].plot(data_p,c='blue',label='par')
@@ -90,6 +91,27 @@ class LightCurveWaveletCollection():
             axarr[i, 1].set_yticklabels([])
         plt.show()
 
+
+class LightCurveShallueCollection():
+    def __init__(self,id, headers,
+                 lc_global: FoldedLightCurve,
+                 lc_local: FoldedLightCurve):
+        self.lc_global = lc_global
+        self.lc_local = lc_local
+        self.kepler_id = id
+        self.headers = headers
+
+    def save(self, path = ""):
+        file_name = path + '/kic '+str(self.kepler_id)+'-'+self.headers['kepoi_name']+'.pickle'
+        with open(file_name, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def from_pickle(cls, path):
+        if path.endswith(".pickle"):
+            with open(path, "rb") as f:
+                w_loaded = pickle.load(f)
+            return w_loaded
 
 class LightCurveGlobalLocalCollection():
     def __init__(self,id, headers,
@@ -123,6 +145,7 @@ class LightCurveGlobalLocalCollection():
         self.pliegue_par_global.plot(**{"ax": ax2, "title": "global par",  **kwargs})
         self.pliegue_impar_local.plot(**{"ax": ax3, "title": "local impar", **kwargs})
         self.pliegue_par_local.plot(**{"ax": ax4, "title": "local par", **kwargs})
+        return fig, ((ax1, ax2), (ax3, ax4))
         
     def scatter(self, **kwargs):
         self.pliegue_par_global.scatter(**kwargs)
@@ -137,14 +160,15 @@ class LightCurveWaveletGlobalLocalCollection():
                  lc_impar_global: LightCurveWaveletFoldCollection,
                  lc_par_local: LightCurveWaveletFoldCollection,
                  lc_impar_local: LightCurveWaveletFoldCollection,
-                 levels):
+                 levels_global, levels_local):
         self.pliegue_par_global = lc_par_global
         self.pliegue_impar_global = lc_impar_global
         self.pliegue_par_local = lc_par_local
         self.pliegue_impar_local = lc_impar_local
         self.kepler_id = id
         self.headers = headers
-        self.levels = levels
+        self.levels_global = levels_global
+        self.levels_local = levels_local
 
     def save(self, path = ""):
         file_name = path + '/kic '+str(self.kepler_id)+'-'+self.headers['Kepler_name']+'_wavelet.pickle'
@@ -161,24 +185,25 @@ class LightCurveWaveletGlobalLocalCollection():
     def plot(self, **kwargs):
         if kwargs.get("figure_paths") is not None:
             figure_paths = kwargs.get("figure_paths")
-            self.pliegue_impar_global.plot()
-            if kwargs.get("title") is not None:
-                plt.title(title + "global impar")
+            title =  kwargs.get("title")
+            fig, axarr = self.pliegue_impar_global.plot()
+            if title:
+                fig.suptitle(title + " global impar")
             plt.savefig(figure_paths[0])
             plt.close('all')
             self.pliegue_par_global.plot()
-            if kwargs.get("title") is not None:
-                plt.title(title + "global par")
+            if title:
+                fig.suptitle(title + " global par")
             plt.savefig(figure_paths[1])
             plt.close('all')
             self.pliegue_impar_local.plot()
-            if kwargs.get("title") is not None:
-                plt.title(title + "local impar")
+            if title:
+                fig.suptitle(title + " local impar")
             plt.savefig(figure_paths[2])
             plt.close('all')
             self.pliegue_par_local.plot()
-            if kwargs.get("title") is not None:
-                plt.title(title + "local par")
+            if title:
+                fig.suptitle(title + "local par")
             plt.savefig(figure_paths[3])
             plt.close('all')
         else:

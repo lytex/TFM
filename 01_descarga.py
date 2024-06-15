@@ -14,11 +14,12 @@
 # ---
 
 # %%
-# %pdb on
+# %pdb off
 # %matplotlib agg
 
 from IPython.display import display
 import warnings
+import traceback
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
 import pandas as pd
@@ -37,6 +38,7 @@ from functools import partial
 import logging
 
 
+
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
 
@@ -44,7 +46,7 @@ df = pd.read_csv(df_path ,skiprows=144)
 def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         sigma=20, sigma_upper=4,
                         wavelet_window=None,
-                        wavelet_family=None, levels=None, cut_border_percent=0.1,
+                        wavelet_family=None, levels_global=None, levels_local=None, cut_border_percent=0.1,
                         plot = False, plot_comparative=False,save=False, path="", plot_folder=None, df_path=None) -> LightCurveWaveletGlobalLocalCollection:
     """
 
@@ -56,7 +58,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         sigma_upper (): 
         wavelet_window (): 
         wavelet_family (): 
-        levels (): 
+        levels_global, levels_local (): 
         cut_border_percent (): 
         plot (): 
         plot_comparative (): 
@@ -90,23 +92,40 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     light_curve_collection = lc_search.download_all(download_dir=download_dir)
 
     # 2. Generar la colección, juntarlos todos y quitarles Nan
-    logger.info("Juntando colleción de curvas...")
+    logger.info("Juntando colección de curvas...")
     lc_collection = lk.LightCurveCollection([lc for lc in light_curve_collection])
-    lc_ro = lc_collection.stitch()
-    lc_nonans = lc_ro.remove_nans()
+    lc_collection = lc_collection.stitch()
+    logger.info(f"Eliminando outliers sigma={sigma}, sigma_upper={sigma_upper}...")
+    lc_nonans = lc_collection.remove_nans()
+    from astropy.stats.sigma_clipping import sigma_clip
+    res, min_, max_ = sigma_clip(data=lc_nonans.flux, sigma=sigma, sigma_upper=sigma_upper, return_bounds=True)
+    outlier_mask = res.mask
+    lc_ro = lc_nonans.copy()[~outlier_mask]
+    # lc_ro, mask = lc_collection.remove_outliers(sigma=sigma, sigma_upper=sigma_upper, return_mask=True)
 
     # 3. Plegar en fase y dividir en pares e impares
     logger.info("Plegando en fase pares/impares...")
-    lc_fold = lc_nonans.fold(period = row.koi_period,epoch_time = row.koi_time0bk)
+    lc_fold = lc_ro.fold(period = row.koi_period,epoch_time = row.koi_time0bk)
     if plot:
         logger.info('graficando series plegadas en fase...')
-        lc_fold.plot()
-        plt.title(f'KIC {row.kepid}: {row.koi_disposition}')
+        # Ploteamos con los outliers
+        ax = lc_nonans.fold(period = row.koi_period,epoch_time = row.koi_time0bk).plot()
+        ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}')
+        ax.axhline(min_)
+        ax.axhline(max_)
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_01_plegado.png")
             plt.close('all')
         else:
             plt.show()
+
+    if save:
+        LightCurveShallueCollection(row.kepid, row,
+                                    global_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, normalize=True),
+                                    local_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, row.koi_duration, normalize=True)
+                                   ).save(path)
+        
+    
     lc_odd = lc_fold[lc_fold.odd_mask]
     lc_even = lc_fold[lc_fold.even_mask]
 
@@ -125,12 +144,12 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration, normalize=True)
     lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux,)
     lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
-    lc_collection = LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local)
+    lc_gl_collection = LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local)
 
     if plot:
         logger.info('graficando series bineadas...')
-        lc_collection.plot()
-        plt.title(f'KIC {row.kepid}: {row.koi_disposition}')
+        fig, ((ax1, ax2), (ax3, ax4)) = lc_gl_collection.plot()
+        fig.suptitle(f'KIC {row.kepid}: {row.koi_disposition}')
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_02_bineado.png")
             plt.close('all')
@@ -146,10 +165,10 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_even_local = cut_wavelet(lc_even_local, wavelet_window)
     
     logger.info("Calculando wavelets...")
-    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
-    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
+    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels_global, cut_border_percent=cut_border_percent)
+    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels_global, cut_border_percent=cut_border_percent)
+    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels_local, cut_border_percent=cut_border_percent)
+    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels_local, cut_border_percent=cut_border_percent)
 
     headers = {
         "id": row.kepid,
@@ -170,7 +189,8 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         "impact_err2": row.koi_impact_err2,
         "class": row.koi_disposition,
         "wavelet_family":wavelet_family,
-        "levels":levels,
+        "levels_global": levels_global,
+        "levels_local": levels_local,
         "window":wavelet_window,
         "border_cut":cut_border_percent,
         "df_path": df_path,
@@ -181,7 +201,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                                                                    lc_w_odd_global,
                                                                    lc_w_even_local,
                                                                    lc_w_odd_local,
-                                                                   levels)
+                                                                   levels_global, levels_local)
 
     if(plot):
         logger.info('graficando wavelets obtenidas...')
@@ -206,7 +226,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 
 path = "all_data_2024-06-11/"
 download_dir="data3/"
-process_func =  partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=True, plot_comparative=False,
+process_func =  partial(process_light_curve, levels_global=[1, 2, 3, 4, 5], levels_local=[1, 2, 3], wavelet_family="sym5", plot=True, plot_comparative=False,
                         save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder="all_data_2024-06-11/")
 
 def process_func_continue(row):
@@ -214,14 +234,14 @@ def process_func_continue(row):
         return process_func(row)
     except Exception as e:
         print(f"Exception on {row.kepid}")
-        import traceback; print("".join(traceback.format_stack()))
+        traceback.print_exc()
         return e
 
 
-# results = []
-# for _, row in tqdm(df.iterrows(), total=len(df)):
-#     results.append(process_func_continue(row))
-results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=4, total=len(df), error_behavior='coerce')
+results = []
+for _, row in tqdm(df.iterrows(), total=len(df)):
+    results.append(process_func_continue(row))
+# results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=4, total=len(df), error_behavior='coerce')
 
 failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
 failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
@@ -231,11 +251,8 @@ df_fail = df.loc[failures_idx].copy()
 df_fail['exception'] = failures
 df_fail.to_csv(path+f"/failure_{now}.csv", index=False)
 
-from IPython import embed; embed()
 # process_light_curve
 
 # %%
 df[['rowid', 'koi_disposition']].groupby('koi_disposition')['rowid'].count(), df[['rowid', 'koi_pdisposition']].groupby('koi_pdisposition')['rowid'].count()
 # df.keys()
-
-# %%
