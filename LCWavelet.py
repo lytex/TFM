@@ -162,15 +162,23 @@ class LightCurveWaveletGlobalLocalCollection():
         if kwargs.get("figure_paths") is not None:
             figure_paths = kwargs.get("figure_paths")
             self.pliegue_impar_global.plot()
+            if kwargs.get("title") is not None:
+                plt.title(title + "global impar")
             plt.savefig(figure_paths[0])
             plt.close('all')
             self.pliegue_par_global.plot()
+            if kwargs.get("title") is not None:
+                plt.title(title + "global par")
             plt.savefig(figure_paths[1])
             plt.close('all')
             self.pliegue_impar_local.plot()
+            if kwargs.get("title") is not None:
+                plt.title(title + "local impar")
             plt.savefig(figure_paths[2])
             plt.close('all')
             self.pliegue_par_local.plot()
+            if kwargs.get("title") is not None:
+                plt.title(title + "local par")
             plt.savefig(figure_paths[3])
             plt.close('all')
         else:

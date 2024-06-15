@@ -45,7 +45,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         sigma=20, sigma_upper=4,
                         wavelet_window=None,
                         wavelet_family=None, levels=None, cut_border_percent=0.1,
-                        plot = False, plot_comparative=False,save=False, path="", plot_folder=None) -> LightCurveWaveletGlobalLocalCollection:
+                        plot = False, plot_comparative=False,save=False, path="", plot_folder=None, df_path=None) -> LightCurveWaveletGlobalLocalCollection:
     """
 
     Args:
@@ -101,6 +101,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if plot:
         logger.info('graficando series plegadas en fase...')
         lc_fold.plot()
+        plt.title(f'KIC {row.kepid}: {row.koi_disposition}')
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_01_plegado.png")
             plt.close('all')
@@ -128,6 +129,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if plot:
         logger.info('graficando series bineadas...')
         LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local).plot()
+        plt.title(f'KIC {row.kepid}: {row.koi_disposition}')
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_02_bineado.png")
             plt.close('all')
@@ -170,6 +172,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         "levels":levels,
         "window":wavelet_window,
         "border_cut":cut_border_percent,
+        "df_path": df_path,
         "Kepler_name":row.kepoi_name
     }
     lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepid, headers,
@@ -182,12 +185,13 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if(plot):
         logger.info('graficando wavelets obtenidas...')
         if plot_folder is not None:
+            # gi, gp, li, lp: global impar, global par, local impar, local par
             figure_paths = (f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_gi.png",
              f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_gp.png",
              f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_li.png",
              f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_lp.png",
              )
-            lc_wavelet_collection.plot(figure_paths=figure_paths)
+            lc_wavelet_collection.plot(figure_paths=figure_paths, title=f'KIC {row.kepid}: {row.koi_disposition}')
         else:
             lc_wavelet_collection.plot()
             plt.show()
@@ -202,7 +206,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 path = "all_data_2024-06-11/"
 download_dir="data3/"
 process_func =  partial(process_light_curve, levels=[1, 2, 3, 4], wavelet_family="sym5", plot=True, plot_comparative=False,
-                        save=True, path=path, download_dir=download_dir, plot_folder="all_data_2024-06-11/")
+                        save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder="all_data_2024-06-11/")
 
 def process_func_continue(row):
     try:
@@ -232,3 +236,5 @@ from IPython import embed; embed()
 # %%
 df[['rowid', 'koi_disposition']].groupby('koi_disposition')['rowid'].count(), df[['rowid', 'koi_pdisposition']].groupby('koi_pdisposition')['rowid'].count()
 # df.keys()
+
+# %%
