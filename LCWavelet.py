@@ -29,10 +29,10 @@ class LightCurveWaveletFoldCollection():
 
     def plot(self):
         wavelet = self._lc_w_collection
-        time = self._light_curve.time.value
-        data = self._light_curve.flux.value
-        plt.figure(figsize=(16, 4))
-        plt.plot(time,data)
+        # time = self._light_curve.time.value
+        # data = self._light_curve.flux.value
+        # plt.figure(figsize=(16, 4))
+        # plt.plot(time,data)
         fig, axarr = plt.subplots(nrows=len(wavelet), ncols=2, figsize=(16,12))
         for i,lc_w in enumerate(wavelet):
             (data, coeff_d) = lc_w
@@ -257,6 +257,8 @@ def apply_wavelet(light_curve,w_family, levels,cut_border_percent=0.1):
     time = light_curve.time.value
     data = light_curve.flux.value
     lc_wavelet = []
+    # TODO usar wavedec
+    # lc_wavelet2 = pywt.wavedec(data, w_family, level=levels)
     try:
         for level in range(levels):
             level_w = pywt.dwt(data, w_family)

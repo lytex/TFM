@@ -226,7 +226,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 
 path = "all_data_2024-06-11/"
 download_dir="data3/"
-process_func =  partial(process_light_curve, levels_global=[1, 2, 3, 4, 5], levels_local=[1, 2, 3], wavelet_family="sym5", plot=True, plot_comparative=False,
+process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", plot=True, plot_comparative=False,
                         save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder="all_data_2024-06-11/")
 
 def process_func_continue(row):
@@ -238,10 +238,10 @@ def process_func_continue(row):
         return e
 
 
-results = []
-for _, row in tqdm(df.iterrows(), total=len(df)):
-    results.append(process_func_continue(row))
-# results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=4, total=len(df), error_behavior='coerce')
+# results = []
+# for _, row in tqdm(df.iterrows(), total=len(df)):
+#     results.append(process_func_continue(row))
+results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=10, total=len(df), error_behavior='coerce')
 
 failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
 failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
