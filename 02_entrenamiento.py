@@ -65,15 +65,18 @@ for lc in lightcurves:
         pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
         
 
-pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in (1 ,2)}
+global_level_list = (1, 2, 3, 4, 5)
+local_level_list = (1, 2, 3)
+
+pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
 pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
-pliegue_impar_global = {k: np.array(v) for k, v in pliegue_impar_global.items() if k in (1, 2)}
+pliegue_impar_global = {k: np.array(v) for k, v in pliegue_impar_global.items() if k in global_level_list}
 pliegue_impar_global = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_global.items()}
 
 
-pliegue_par_local = {k: np.array(v) for k, v in pliegue_par_local.items() if k in (1, 2)}
+pliegue_par_local = {k: np.array(v) for k, v in pliegue_par_local.items() if k in local_level_list}
 pliegue_par_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_par_local.items()}
-pliegue_impar_local = {k: np.array(v) for k, v in pliegue_impar_local.items() if k in (1, 2)}
+pliegue_impar_local = {k: np.array(v) for k, v in pliegue_impar_local.items() if k in local_level_list}
 pliegue_impar_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_local.items()}
 
 
@@ -100,7 +103,8 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
  
     for n, data in pliegue_par_global.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]/2001)
+        layer_depth = ceil(data.shape[1]*5.0/2001)
+        print(f"par global: {layer_depth}")
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -113,7 +117,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
         
     for n, data in pliegue_impar_global.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]/2001)
+        layer_depth = ceil(data.shape[1]*5.0/2001)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -126,7 +130,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
 
     for n, data in pliegue_par_local.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]/201)
+        layer_depth = ceil(data.shape[1]*2.0/201)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -139,7 +143,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
         
     for n, data in pliegue_impar_local.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]/201)
+        layer_depth = ceil(data.shape[1]*2.0/201)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -149,6 +153,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
             block.add(MaxPooling1D(pool_size=3, strides=1, ))
         block.add(Flatten())
         net["local_impar"].append(block)
+
                              
     model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
@@ -227,8 +232,7 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
       model_f.summary()
     return model_f
 
-
-
+# %%
 flatten = []
 for (n, data) in sorted(pliegue_par_global.items(), key=lambda d: d[0]):
     flatten.append(data)
@@ -264,9 +268,18 @@ num2class = {n: label for n, label in enumerate(output_classes)}
 y = to_categorical([class2num[x] for x in y], num_classes=2)
 
 # %%
+from sklearn.model_selection import KFold
+kf = KFold(n_splits=5)
+# split = list(kf.split(flatten, y))
+# split[0][0].shape
+y.shape, [x.shape for x in flatten], np.hstack(flatten).shape
+
+# %%
 res = train_test_split(*(flatten+[y]), test_size=0.3, shuffle=False)
+
 *X_train, y_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
 *X_test, y_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
+
 
 model_1 = gen_model_2_levels(inputs, output_classes)
 tf.keras.utils.plot_model(model_1, "model.png")
