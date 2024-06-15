@@ -255,6 +255,19 @@ for (n, data) in sorted(pliegue_impar_local.items(), key=lambda d: d[0]):
 for (n, data) in sorted(pliegue_par_local.items(), key=lambda d: d[0]):
     flatten.append(data)
 
+# %%
+import pandas as pd
+# Permitir cargar un archivo distinto de descargado
+df_path = 'cumulative_2024.06.01_09.08.01.csv'
+df = pd.read_csv(df_path ,skiprows=144)
+df_data = pd.DataFrame([{"class": lc.headers['class'], "kepoi_name": lc.headers['Kepler_name'] } for lc in lightcurves])
+df_merge = pd.merge(df_data, df, on='kepoi_name')
+y = df_merge['koi_disposition'].to_numpy()
+y_original = np.array([lc.headers['class'] for lc in lightcurves])
+# Diferencia
+df_merge.loc[df_merge["class"] != df_merge.koi_disposition][["kepid", "kepoi_name", "class", "koi_disposition"]]
+
+# %%
 y = np.array([lc.headers['class'] for lc in lightcurves])
 output_classes = np.unique([lc.headers['class'] for lc in lightcurves])
 class2num = {label: n for n, label in enumerate(output_classes)}

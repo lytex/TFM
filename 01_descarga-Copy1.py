@@ -26,7 +26,7 @@ from LCWavelet import *
 from binning import bin_and_aggregate
 from tqdm import tqdm
 
-df_path = 'cumulative_2022.09.30_09.06.43.csv'
+df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
 
 

@@ -37,7 +37,7 @@ from functools import partial
 import logging
 
 
-df_path = 'cumulative_2022.09.30_09.06.43.csv'
+df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
 
 
@@ -149,6 +149,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels, cut_border_percent=cut_border_percent)
 
     headers = {
+        "id": row.kepid,
         "period": row.koi_period,
         "koi_period_err1": row.koi_period_err1,
         "koi_period_err2": row.koi_period_err2,
