@@ -287,14 +287,17 @@ tf.keras.utils.model_to_dot(model_1).write("model.dot")
 model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
 
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+# tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=log_dir,
-                                                 save_weights_only=True,
-                                                 verbose=1)
+# cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=log_dir,
+#                                                  save_weights_only=True,
+#                                                  verbose=1)
 
-history_1 = model_1.fit(X_train, y_train, epochs=100, batch_size=64, validation_data=(X_test, y_test),
-                        callbacks=[tensorboard_callback, cp_callback])
+cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
+
+
+history_1 = model_1.fit(X_train, y_train, epochs=1000, batch_size=64, validation_data=(X_test, y_test),
+                        callbacks=[cp_callback])
 
 # %%
 # summarize history_1 for accuracy
