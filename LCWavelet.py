@@ -147,7 +147,7 @@ class LightCurveWaveletGlobalLocalCollection():
         self.levels = levels
 
     def save(self, path = ""):
-        file_name = path + '/kic '+str(self.kepler_id)+'-'+self.headers['Kepler_name']+'.pickle'
+        file_name = path + '/kic '+str(self.kepler_id)+'-'+self.headers['Kepler_name']+'_wavelet.pickle'
         with open(file_name, "wb") as f:
             pickle.dump(self, f)
 

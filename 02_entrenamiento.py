@@ -31,7 +31,7 @@ from functools import partial
 import datetime
 
 path = "all_data_2024-06-01/"
-files = [file for file in os.listdir(path) if file.endswith(".pickle")]
+files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
 lightcurves = []
 
 def load_files(file, path):

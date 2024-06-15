@@ -125,10 +125,11 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration, normalize=True)
     lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux,)
     lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
+    lc_collection = LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local)
 
     if plot:
         logger.info('graficando series bineadas...')
-        LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local).plot()
+        lc_collection.plot()
         plt.title(f'KIC {row.kepid}: {row.koi_disposition}')
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_02_bineado.png")
