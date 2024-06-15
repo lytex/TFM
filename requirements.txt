@@ -54,8 +54,9 @@ protobuf==3.19.6          # via tensorboard, tensorflow
 pyasn1==0.5.1             # via pyasn1-modules, rsa
 pyasn1-modules==0.3.0     # via google-auth
 pycparser==2.21           # via cffi
+pydot==2.0.0              # via -r requirements.in
 pyerfa==2.0.0.3           # via astropy
-pyparsing==3.1.2          # via matplotlib
+pyparsing==3.1.2          # via matplotlib, pydot
 python-dateutil==2.9.0.post0  # via matplotlib, pandas
 pytz==2024.1              # via pandas
 pyvo==1.2.1               # via astroquery
