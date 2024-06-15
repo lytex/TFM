@@ -166,3 +166,9 @@ waveletsK
 
 all_data*
 *.png
+
+*.zip
+*.csv
+data*
+/logs*/
+*.dot
