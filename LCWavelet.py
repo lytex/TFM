@@ -39,7 +39,7 @@ class LightCurveWaveletFoldCollection():
             axarr[i, 0].plot(data, 'r')
             axarr[i, 1].plot(coeff_d, 'g')
             axarr[i, 0].set_ylabel("Level {}".format(i + 1), fontsize=14, rotation=90)
-            axarr[i, 0].set_yticklabels([])
+            # axarr[i, 0].set_yticklabels([])
             if i == 0:
                 axarr[i, 0].set_title("Approximation coefficients", fontsize=14)
                 axarr[i, 1].set_title("Detail coefficients", fontsize=14)
@@ -140,7 +140,7 @@ class LightCurveGlobalLocalCollection():
 
     def plot(self, **kwargs):
 
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, figsize=(16,12))
         self.pliegue_impar_global.plot(**{"ax": ax1, "title": "global impar", **kwargs})
         self.pliegue_par_global.plot(**{"ax": ax2, "title": "global par",  **kwargs})
         self.pliegue_impar_local.plot(**{"ax": ax3, "title": "local impar", **kwargs})

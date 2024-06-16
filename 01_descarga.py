@@ -119,12 +119,13 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if plot:
         logger.info('graficando series plegadas en fase...')
         # Ploteamos con los outliers
-        ax = lc_nonans.fold(period = row.koi_period,epoch_time = row.koi_time0bk).plot()
+        fig, ax = plt.subplots(figsize=(12, 16))
+        ax = lc_nonans.fold(period = row.koi_period,epoch_time = row.koi_time0bk).plot(ax=ax)
         ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}')
-        ax.axhline(min_)
-        ax.axhline(max_)
+        ax.axhline(min_, color='r')
+        ax.axhline(max_, color='r')
         if plot_folder is not None:
-            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_01_plegado.png")
+            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_00_plegado.png")
             plt.close('all')
         else:
             plt.show()
