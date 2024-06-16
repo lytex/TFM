@@ -191,19 +191,19 @@ class LightCurveWaveletGlobalLocalCollection():
                 fig.suptitle(title + " global impar")
             plt.savefig(figure_paths[0])
             plt.close('all')
-            self.pliegue_par_global.plot()
+            fig, axarr = self.pliegue_par_global.plot()
             if title:
                 fig.suptitle(title + " global par")
             plt.savefig(figure_paths[1])
             plt.close('all')
-            self.pliegue_impar_local.plot()
+            fig, axarr = self.pliegue_impar_local.plot()
             if title:
                 fig.suptitle(title + " local impar")
             plt.savefig(figure_paths[2])
             plt.close('all')
-            self.pliegue_par_local.plot()
+            fig, axarr = self.pliegue_par_local.plot()
             if title:
-                fig.suptitle(title + "local par")
+                fig.suptitle(title + " local par")
             plt.savefig(figure_paths[3])
             plt.close('all')
         else:
@@ -291,9 +291,14 @@ def cut_wavelet(lightCurve,window):
     flux_error_selected = flux_error[min_w:max_w]
     return lk.lightcurve.FoldedLightCurve(time=time_selected,flux=data_selected,flux_err=flux_error_selected)
 
-def cut_border(data_old,cut_percent=0.1):
+def cut_border(data_old,cut_percent=0.1, normalize=True):
     data_len_cut = int(len(data_old[0])*(cut_percent/2))
     data_new = [data[data_len_cut:(len(data)-data_len_cut)] for data in data_old ]
+    if normalize:
+        data_new[0] -= np.median(data_new[0], axis=0)
+        data_new[0] /= np.abs(np.min(data_new[0], axis=0))
+        data_new[1] -= np.median(data_new[1], axis=0)
+        data_new[1] /= np.abs(np.min(data_new[1], axis=0))
     return data_new
     
 def process_light_curve(kepler_id,kepler_name,disp,period,epoch,w_family,levels,plot = False, plot_comparative=False,save=False, path="",wavelet_window=None,cut_border_percent=0.2):

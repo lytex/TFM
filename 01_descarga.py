@@ -86,16 +86,19 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         os.makedirs(os.path.dirname(f"{plot_folder}/plot/"), exist_ok=True)
     
     # 1. Bajarse los datos con lightkurve o cargarlos si ya están bajados
-    logger.info(f"Bajando datos para {mission} {row.kepid}...");
     kic = f'KIC {row.kepid}'
     file_name = download_dir+kic+".pickle"
     if use_download_cache:
+        logger.info(f"Cargando datos de caché para {mission} {row.kepid}...");
         with open(file_name, "rb") as f:
             lc_search = pickle.load(f)
     else:
+        logger.info(f"Bajando datos para {mission} {row.kepid}...");
         lc_search = lk.search_lightcurve(kic, mission=mission)
         with open(file_name, "wb") as f:
             pickle.dump(lc_search, f)
+            
+    logger.info(f"Abriendo o descargando curvas de luz en la ruta {download_dir}...");
     light_curve_collection = lc_search.download_all(download_dir=download_dir)
 
     # 2. Generar la colección, juntarlos todos y quitarles Nan
@@ -231,10 +234,10 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_wavelet_collection.save(path)
     return lc_wavelet_collection
 
-path = "all_data_2024-06-11/"
+path = "all_data_2024-06-16/"
 download_dir="data3/"
-process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", plot=True, plot_comparative=False,
-                        save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder="all_data_2024-06-11/", use_download_cache=True)
+process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
+                        plot=True, plot_comparative=False, save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)
 
 def process_func_continue(row):
     try:
@@ -245,10 +248,10 @@ def process_func_continue(row):
         return e
 
 
-results = []
-for _, row in tqdm(df.iterrows(), total=len(df)):
-    results.append(process_func_continue(row))
-# results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=10, total=len(df), error_behavior='coerce')
+# results = []
+# for _, row in tqdm(df.iterrows(), total=len(df)):
+#     results.append(process_func_continue(row))
+results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=10, total=len(df), error_behavior='coerce')
 
 failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
 failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
