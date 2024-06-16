@@ -23,20 +23,28 @@ import matplotlib as mpl
 from matplotlib import cm
 
 # Example signal: a sinusoid with added noise
-t = np.linspace(0, 1, 400, endpoint=False)
-signal = np.cos(2 * np.pi * 7 * t) + 0.1*np.random.randn(len(t))
+t = np.linspace(0, 1, 4001, endpoint=False)
+signal = np.cos(2 * np.pi * 7 * t) + 0.1*np.random.randn(len(t)) 
+# + np.cos(2 * np.pi * 18 * 1/t)*np.exp(-0.5*t**2) + 0.5*np.cos(2 * np.pi * 18 * t**4)
 
 # Perform the Discrete Wavelet Transform (DWT)
-wavelet = 'haar'  # Daubechies wavelet with 4 vanishing moments
-coeffs = pywt.wavedec(signal, wavelet, level=4)
+wavelet = 'sym5'  # Daubechies wavelet with 4 vanishing moments
+coeffs = pywt.wavedec(signal, wavelet, level=3)
 
 # Plot the original signal and its DWT coefficients
 fig, ax = plt.subplots(len(coeffs) + 1, 1, figsize=(10, 12))
 ax[0].plot(t, signal)
 ax[0].set_title('Original Signal')
 
+res = np.zeros((len(coeffs[0]),))
 for i, coeff in enumerate(coeffs):
-    ax[i + 1].plot(coeff)
+    # coeff =  pywt.upcoef("d", coeff, wavelet)
+    print(res.shape, coeff.shape)
+    ax[i + 1].plot(res + coeff)
+    res += coeff
+    if i != 0:
+        res = np.repeat(res, 2)
+    print(res.shape, coeff.shape)
     ax[i + 1].set_title(f'Level {i} DWT Coefficients')
 
 plt.tight_layout()
@@ -60,7 +68,7 @@ def upsample(coeff, factor):
 for i, coeff in enumerate(reversed(coeffs)):
     # The upsampling factor is 2^i for the i-th level
     factor = 2 ** i
-    upsampled_coeff = upsample(coeff, factor)
+    upsampled_coeff = upsample(coeff, factor)/factor
 
     # Ensure the length does not exceed the max_len
     if len(upsampled_coeff) > max_len:
@@ -89,7 +97,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Choose a specific wavelet name (e.g., 'db4' for Daubechies 4 wavelet)
-wavelet_name = 'sym5'
+wavelet_name = 'haar'
 
 # Initialize the wavelet object
 wavelet = pywt.Wavelet(wavelet_name)

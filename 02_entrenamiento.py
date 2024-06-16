@@ -23,7 +23,7 @@ from collections import defaultdict
 from parallelbar import progress_map
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, concatenate,Conv1D, Flatten,Dropout , BatchNormalization, MaxPooling1D
+from tensorflow.keras.layers import Input, Dense, concatenate,Conv1D, Flatten,Dropout , BatchNormalization, MaxPooling1D, AveragePooling1D
 from tensorflow.keras.models import Model, Sequential
 from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
@@ -65,8 +65,8 @@ for lc in lightcurves:
         pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
         
 
-global_level_list = (1, 2, 3, 4, 5)
-local_level_list = (1, 2, 3)
+global_level_list = (1, 3, 5)
+local_level_list = (1,  3)
 
 pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
 pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
@@ -103,7 +103,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
  
     for n, data in pliegue_par_global.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]*5.0/2001)
+        layer_depth = ceil(data.shape[1]*5.0/2001 + 1)
         print(f"par global: {layer_depth}")
         for i in range(layer_depth):
             if i == 0:
@@ -117,7 +117,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
         
     for n, data in pliegue_impar_global.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]*5.0/2001)
+        layer_depth = ceil(data.shape[1]*5.0/2001 + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -130,7 +130,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
 
     for n, data in pliegue_par_local.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]*2.0/201)
+        layer_depth = ceil(data.shape[1]*2.0/201 + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -143,7 +143,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
         
     for n, data in pliegue_impar_local.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]*2.0/201)
+        layer_depth = ceil(data.shape[1]*2.0/201 + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -157,10 +157,10 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
                              
     model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
-    model_f = Dense(512,activation=activation)(model_f)
-    model_f = Dense(512,activation=activation)(model_f)
-    model_f = Dense(512,activation=activation)(model_f)
-    model_f = Dense(512,activation=activation)(model_f)
+    model_f = Dense(256,activation=activation)(model_f)
+    model_f = Dense(256,activation=activation)(model_f)
+    model_f = Dense(256,activation=activation)(model_f)
+    model_f = Dense(256,activation=activation)(model_f)
     model_f = Dense(2,activation='softmax')(model_f)
     
     model_f = Model([[m.input for m in net["global_par"]], [m.input for m in net["global_impar"]]  , [m.input for m in net["local_par"]], [m.input for m in net["local_impar"]]],model_f)
@@ -296,7 +296,7 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 
-history_1 = model_1.fit(X_train, y_train, epochs=1000, batch_size=64, validation_data=(X_test, y_test),
+history_1 = model_1.fit(X_train, y_train, epochs=10000, batch_size=64, validation_data=(X_test, y_test),
                         callbacks=[cp_callback])
 
 # %%

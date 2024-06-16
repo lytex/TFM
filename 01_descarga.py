@@ -251,7 +251,7 @@ def process_func_continue(row):
 
 # results = []
 # for _, row in tqdm(df.iterrows(), total=len(df)):
-#     results.append(process_func_continue(row))
+#     results.append(process_func(row))
 results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=10, total=len(df), error_behavior='coerce')
 
 failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
