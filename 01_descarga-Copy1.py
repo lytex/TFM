@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 from LCWavelet import *
 from binning import bin_and_aggregate
 from tqdm import tqdm
+import pickle
 
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
@@ -39,6 +40,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data2/",
 
     kic = f'KIC {row.kepid}'
     lc_search = lk.search_lightcurve(kic, mission=mission)
+    
     light_curve_collection = lc_search.download_all(download_dir=download_dir)
 
     # lc_collection = lk.LightCurveCollection([lc.remove_outliers(sigma=sigma, sigma_upper=sigma_upper) for lc in light_curve_collection])
@@ -125,7 +127,9 @@ import traceback
 def download_one(kic):
     try:
         lc_search = lk.search_lightcurve(kic, mission="Kepler")
-        light_curve_collection = lc_search.download_all(download_dir="data3/")
+        file_name = "data3/"+kic+".pickle"
+        with open(file_name, "wb") as f:
+            pickle.dump(lc_search, f)
     except Exception:
         print(traceback.format_exc())
     return None
@@ -142,7 +146,7 @@ from concurrent import futures
 from parallelbar import progress_map
 # with flushing(), futures.ThreadPoolExecutor(max_workers=32) as executor:
 #     res = executor.map(download_one, kep_id)
-progress_map(download_one, kep_id, n_cpu=16)
+progress_map(download_one, kep_id, n_cpu=16, error_behavior='coerce')
 
 # pd.concat([lc.table.to_pandas() for lc in lc_search]).to_csv("table.csv", index=None)
 # lc_search[0].table.to_pandas()
