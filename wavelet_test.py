@@ -36,59 +36,31 @@ fig, ax = plt.subplots(len(coeffs) + 1, 1, figsize=(10, 12))
 ax[0].plot(t, signal)
 ax[0].set_title('Original Signal')
 
-res = np.zeros((len(coeffs[0]),))
 for i, coeff in enumerate(coeffs):
-    # coeff =  pywt.upcoef("d", coeff, wavelet)
-    print(res.shape, coeff.shape)
-    ax[i + 1].plot(res + coeff)
-    res += coeff
-    if i != 0:
-        res = np.repeat(res, 2)
-    print(res.shape, coeff.shape)
+    ax[i + 1].plot(coeff)
     ax[i + 1].set_title(f'Level {i} DWT Coefficients')
 
 plt.tight_layout()
 plt.show()
 
-# Calculate the maximum length of the coefficients
-max_len = max(len(coeff) for coeff in coeffs)
-
-# Prepare an empty array to hold the coefficients
-coeff_arr = np.zeros((len(coeffs), max_len))
-
-# Fill the array with coefficients, aligning them to the left
-# for i, coeff in enumerate(coeffs):
-#     coeff_arr[i, :len(coeff)] = coeff
-
-# Upsample coefficients so that each level is twice as large as the previous one
-def upsample(coeff, factor):
-    return np.repeat(coeff, factor)
-
-# Fill the array with upsampled coefficients
-for i, coeff in enumerate(reversed(coeffs)):
-    # The upsampling factor is 2^i for the i-th level
-    factor = 2 ** i
-    upsampled_coeff = upsample(coeff, factor)/factor
-
-    # Ensure the length does not exceed the max_len
-    if len(upsampled_coeff) > max_len:
-        upsampled_coeff = upsampled_coeff[:max_len]
-    coeff_arr[i, :len(upsampled_coeff)] = upsampled_coeff
-
-# Reverse the order of the rows to have the finest scale at the bottom
-coeff_arr = np.flipud(coeff_arr)
-
-# Plot the coefficients using imshow
+coeff_arr = np.array(coeff)
 nrm = mpl.colors.Normalize(min(coeff_arr.min(), -coeff_arr.max()), max(coeff_arr.max(), -coeff_arr.min()))
 plt.figure(figsize=(10, 6))
-plt.imshow(coeff_arr, aspect='auto', interpolation='nearest', extent=[0, len(signal), 1, len(coeffs)], cmap=cm.RdBu, norm=nrm)
-plt.colorbar(label='Coefficient Magnitude')
-plt.xlabel('Time')
-plt.ylabel('Scale (Level)')
-plt.yscale('log', base=2)
-plt.gca().invert_yaxis()
-plt.title('DWT Coefficients')
+
+for i, ci in enumerate(coeffs):
+    plt.imshow(ci.reshape(1, -1), extent=[0, 1000, i + 0.5, i + 1.5], aspect='auto', interpolation='nearest', cmap=cm.RdBu, norm=nrm)
+
+plt.ylim(0.5, len(coeffs) + 0.5) # set the y-lim to include the six horizontal images
+
 plt.show()
+
+# plt.colorbar(label='Coefficient Magnitude')
+# plt.xlabel('Time')
+# plt.ylabel('Scale (Level)')
+# plt.yscale('log', base=2)
+# plt.gca().invert_yaxis()
+# plt.title('DWT Coefficients')
+# plt.show()
 
 
 # %%

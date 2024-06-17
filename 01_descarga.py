@@ -47,7 +47,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         sigma=20, sigma_upper=4,
                         wavelet_window=None,
                         wavelet_family=None, levels_global=None, levels_local=None, cut_border_percent=0.1,
-                        plot = False, plot_comparative=False,save=False, path="", plot_folder=None, use_download_cache=False, df_path=None) -> LightCurveWaveletGlobalLocalCollection:
+                        plot = False, plot_comparative=False,save=False, path="", plot_folder=None, use_download_cache=False, df_path=None, title="") -> LightCurveWaveletGlobalLocalCollection:
     """
 
     Args:
@@ -121,7 +121,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         # Ploteamos con los outliers
         fig, ax = plt.subplots(figsize=(12, 16))
         ax = lc_nonans.fold(period = row.koi_period,epoch_time = row.koi_time0bk).plot(ax=ax)
-        ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}')
+        ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}'+title)
         ax.axhline(min_, color='r')
         ax.axhline(max_, color='r')
         if plot_folder is not None:
@@ -160,7 +160,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if plot:
         logger.info('graficando series bineadas...')
         fig, ((ax1, ax2), (ax3, ax4)) = lc_gl_collection.plot()
-        fig.suptitle(f'KIC {row.kepid}: {row.koi_disposition}')
+        fig.suptitle(f'KIC {row.kepid}: {row.koi_disposition}'+title)
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_02_bineado.png")
             plt.close('all')
@@ -223,7 +223,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
              f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_li.png",
              f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_lp.png",
              )
-            lc_wavelet_collection.plot(figure_paths=figure_paths, title=f'KIC {row.kepid}: {row.koi_disposition}')
+            lc_wavelet_collection.plot(figure_paths=figure_paths, title=f'KIC {row.kepid}: {row.koi_disposition}' + title)
         else:
             lc_wavelet_collection.plot()
             plt.show()
@@ -235,34 +235,35 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_wavelet_collection.save(path)
     return lc_wavelet_collection
 
-path = "all_data_2024-06-16/"
-download_dir="data3/"
-process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
-                        plot=True, plot_comparative=False, save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)
-
-def process_func_continue(row):
-    try:
-        return process_func(row)
-    except Exception as e:
-        print(f"Exception on {row.kepid}")
-        traceback.print_exc()
-        return e
-
-
-# results = []
-# for _, row in tqdm(df.iterrows(), total=len(df)):
-#     results.append(process_func(row))
-results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=10, total=len(df), error_behavior='coerce')
-
-failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
-failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
-
-now = int(time.time())
-df_fail = df.loc[failures_idx].copy()
-df_fail['exception'] = failures
-df_fail.to_csv(path+f"/failure_{now}.csv", index=False)
-
-# process_light_curve
+if __name__ == "__main__":
+    path = "all_data_2024-06-16/"
+    download_dir="data3/"
+    process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
+                            plot=True, plot_comparative=False, save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)
+    
+    def process_func_continue(row):
+        try:
+            return process_func(row)
+        except Exception as e:
+            print(f"Exception on {row.kepid}")
+            traceback.print_exc()
+            return e
+    
+    
+    # results = []
+    # for _, row in tqdm(df.iterrows(), total=len(df)):
+    #     results.append(process_func_continue(row))
+    results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=20, total=len(df), error_behavior='coerce')
+    
+    failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
+    failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
+    
+    now = int(time.time())
+    df_fail = df.loc[failures_idx].copy()
+    df_fail['exception'] = failures
+    df_fail.to_csv(path+f"/failure_{now}.csv", index=False)
+    
+    # process_light_curve
 
 # %%
 df[['rowid', 'koi_disposition']].groupby('koi_disposition')['rowid'].count(), df[['rowid', 'koi_pdisposition']].groupby('koi_pdisposition')['rowid'].count()

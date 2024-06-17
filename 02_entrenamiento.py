@@ -35,7 +35,15 @@ files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wave
 lightcurves = []
 
 def load_files(file, path):
-    global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
+    try:
+        global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
+    except Exception as e:
+        import traceback
+        print(f"Error con archivo {path}/{file}")
+        traceback.print_exc()
+        return None
+        # return e
+        
     # try:
     #     getattr(global_local, "levels")
     # except AttributeError:
@@ -44,10 +52,11 @@ def load_files(file, path):
 
 func = partial(load_files, path=path)
 
-lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
+# lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
 
-# for file in tqdm(files):
-#     lightcurves.append(func(file))
+for file in tqdm(files):
+    lightcurves.append(func(file))
+lightcurves = [lc for lc in lightcurves if lc is not None]
 
 # %%
 
@@ -55,6 +64,9 @@ pliegue_par_global = defaultdict(list)
 pliegue_impar_global = defaultdict(list)
 pliegue_par_local = defaultdict(list)
 pliegue_impar_local = defaultdict(list)
+
+lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
+lightcurves = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
 
 for lc in lightcurves:
     for level in range(1, lc.levels_global+1):
@@ -157,9 +169,13 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
                              
     model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
+    model_f = Dropout(0.5)(model_f)
     model_f = Dense(256,activation=activation)(model_f)
+    model_f = Dropout(0.5)(model_f)
     model_f = Dense(256,activation=activation)(model_f)
+    model_f = Dropout(0.5)(model_f)
     model_f = Dense(256,activation=activation)(model_f)
+    model_f = Dropout(0.5)(model_f)
     model_f = Dense(256,activation=activation)(model_f)
     model_f = Dense(2,activation='softmax')(model_f)
     
@@ -247,21 +263,29 @@ for (n, data) in sorted(pliegue_par_local.items(), key=lambda d: d[0]):
     flatten.append(data)
 
 # %%
-import pandas as pd
-# Permitir cargar un archivo distinto de descargado
-df_path = 'cumulative_2024.06.01_09.08.01.csv'
-df = pd.read_csv(df_path ,skiprows=144)
-df_data = pd.DataFrame([{"class": lc.headers['class'], "kepoi_name": lc.headers['Kepler_name'] } for lc in lightcurves])
-df_merge = pd.merge(df_data, df, on='kepoi_name')
-y = df_merge['koi_disposition'].to_numpy()
-y_original = np.array([lc.headers['class'] for lc in lightcurves])
-# Diferencia
-df_merge.loc[df_merge["class"] != df_merge.koi_disposition][["kepid", "kepoi_name", "class", "koi_disposition"]]
+# import pandas as pd
+# # TODO Permitir cargar un archivo distinto de descargado
+# df_path = 'cumulative_2024.06.01_09.08.01.csv'
+# df = pd.read_csv(df_path ,skiprows=144)
+# df = df.sort_values(by="kepid")
+# df_data = pd.DataFrame([{"class": lc.headers['class'], "kepoi_name": lc.headers['Kepler_name'] } for lc in lightcurves])
+# df_merge = pd.merge(df_data, df, on='kepoi_name')
+# df_merge = df_merge.sort_values(by="kepid")
+# y = df_merge['koi_disposition'].to_numpy()
+# y_original = np.array([lc.headers['class'] for lc in lightcurves])
+# # Diferencia
+# df_merge.loc[df_merge["class"] != df_merge.koi_disposition][["kepid", "kepoi_name", "class", "koi_disposition"]]
 
 # %%
-if np.any(y == "CANDIDATE"):
-    flatten = [array[y != "CANDIDATE"] for array in flatten]
-    y = y[y != "CANDIDATE"]
+y = np.array([lc.headers['class'] for lc in lightcurves])
+# if np.any(y == "CANDIDATE"):
+#     # Están bien ordenados los datos en flatten??
+#     # Comprobar que hay el mismo número de datos
+#     assert all([len(array) == len(y) for array in flatten])
+#     flatten = [array[y != "CANDIDATE"] for array in flatten]
+#     df_merge = df_merge.query("koi_disposition != 'CANDIDATE'")
+#     y = y[y != "CANDIDATE"]
+#     assert len(df_merge) == len(y)
 output_classes = np.unique(y)
 class2num = {label: n for n, label in enumerate(output_classes)}
 num2class = {n: label for n, label in enumerate(output_classes)}
@@ -275,16 +299,26 @@ kf = KFold(n_splits=5)
 y.shape, [x.shape for x in flatten], np.hstack(flatten).shape
 
 # %%
-res = train_test_split(*(flatten+[y]), test_size=0.3, shuffle=False)
+res = train_test_split(*(flatten+[y]+[np.array([lc.headers["id"] for lc in lightcurves])]), test_size=0.3, shuffle=True)
 
-*X_train, y_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
-*X_test, y_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
+*X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
+*X_test, y_test, kepid_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
 
-
+# https://github.com/tensorflow/tensorflow/issues/48545
+if globals().get("model_1"):
+    print("Erasing model_1")
+    del model_1
+    gc.collect()
+    tf.keras.backend.clear_session()
+tf.keras.backend.clear_session()
+# from numba import cuda 
+# device = cuda.get_current_device()
+# device.reset()
 model_1 = gen_model_2_levels(inputs, output_classes)
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
-model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
+model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5,),
+                metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
 
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
@@ -296,7 +330,7 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 
-history_1 = model_1.fit(X_train, y_train, epochs=10000, batch_size=64, validation_data=(X_test, y_test),
+history_1 = model_1.fit(X_train, y_train, epochs=100, batch_size=16, validation_data=(X_test, y_test),
                         callbacks=[cp_callback])
 
 # %%
@@ -328,3 +362,48 @@ y_test_sampled = y_test.argmax(axis=1)
 
 cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sampled), labels=[str(v) for v in num2class.values()])
 ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
+
+# %%
+# %load_ext autoreload
+# %autoreload 2
+wrong = y_predict_sampled != y_test_sampled
+
+
+download_dir="data3/"
+import importlib  
+del descarga
+descarga = importlib.import_module("01_descarga")
+process_light_curve = descarga.process_light_curve
+
+process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
+                        plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True)
+
+def process_func_continue(row, title):
+    try:
+        print(title)
+        return process_func(row, title)
+    except Exception as e:
+        print(f"Exception on {row.kepid}")
+        import traceback
+        traceback.print_exc()
+        return e
+
+
+df_path = 'cumulative_2024.06.01_09.08.01.csv'
+df = pd.read_csv(df_path ,skiprows=144)
+df_kepid = pd.DataFrame({"kepid": kepid_test[wrong], "predicted": y_predict_sampled[wrong], "true": y_test_sampled[wrong]})
+df_wrong = pd.merge(df_kepid, df, how="inner")
+
+# results = []
+for _, row in tqdm(df_wrong.iterrows(), total=len(df_wrong)):
+    try:
+        results.append(process_light_curve(row, title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}",
+                                           levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
+                                           plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True))
+    except Exception as e:
+        print(f"Exception on {row.kepid}")
+        import traceback
+        traceback.print_exc()
+        results.append(e)
+# results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=20, total=len(df), error_behavior='coerce')
+
