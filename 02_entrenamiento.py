@@ -29,9 +29,13 @@ from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from functools import partial
 import datetime
+use_wavelet = False
 
 path = "all_data_2024-06-11/"
-files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
+if use_wavelet:
+    files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
+else:
+    files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
 lightcurves = []
 
 def load_files(file, path):
@@ -59,80 +63,114 @@ for file in tqdm(files):
 lightcurves = [lc for lc in lightcurves if lc is not None]
 
 # %%
-lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
-lightcurves = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
+if use_wavelet:
+    lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
+    lightcurves = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
+else:
+    lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
+    lightcurves = [lc for lc in lightcurves if lc.headers["kepid"] != "CANDIDATE"]
 
 
 lightcurves_train, lightcurves_test = train_test_split(lightcurves, test_size=0.3, shuffle=True)
 
 def inputs_from_dataset(lightcurves):
-    pliegue_par_global = defaultdict(list)
-    pliegue_impar_global = defaultdict(list)
-    pliegue_par_local = defaultdict(list)
-    pliegue_impar_local = defaultdict(list)
-
-    for lc in lightcurves:
-        for level in range(1, lc.levels_global+1):
-            pliegue_par_global[level].append(lc.pliegue_par_global.get_approximation_coefficent(level=level))
-            pliegue_impar_global[level].append(lc.pliegue_impar_global.get_approximation_coefficent(level=level))
-        for level in range(1, lc.levels_local+1):
-            pliegue_par_local[level].append(lc.pliegue_par_local.get_approximation_coefficent(level=level))
-            pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
-            
+    if use_wavelet:
+        pliegue_par_global = defaultdict(list)
+        pliegue_impar_global = defaultdict(list)
+        pliegue_par_local = defaultdict(list)
+        pliegue_impar_local = defaultdict(list)
     
-    global_level_list = (1, 3, 5)
-    local_level_list = (1,  3)
-    
-    pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
-    pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
-    pliegue_impar_global = {k: np.array(v) for k, v in pliegue_impar_global.items() if k in global_level_list}
-    pliegue_impar_global = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_global.items()}
-    
-    
-    pliegue_par_local = {k: np.array(v) for k, v in pliegue_par_local.items() if k in local_level_list}
-    pliegue_par_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_par_local.items()}
-    pliegue_impar_local = {k: np.array(v) for k, v in pliegue_impar_local.items() if k in local_level_list}
-    pliegue_impar_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_local.items()}
-    
-    
-    inputs = (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local)
+        for lc in lightcurves:
+            for level in range(1, lc.levels_global+1):
+                pliegue_par_global[level].append(lc.pliegue_par_global.get_approximation_coefficent(level=level))
+                pliegue_impar_global[level].append(lc.pliegue_impar_global.get_approximation_coefficent(level=level))
+            for level in range(1, lc.levels_local+1):
+                pliegue_par_local[level].append(lc.pliegue_par_local.get_approximation_coefficent(level=level))
+                pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
+                
+        
+        global_level_list = (1, 5,)
+        local_level_list = (1, 3,)
+        
+        pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
+        pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
+        pliegue_impar_global = {k: np.array(v) for k, v in pliegue_impar_global.items() if k in global_level_list}
+        pliegue_impar_global = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_global.items()}
+        
+        
+        pliegue_par_local = {k: np.array(v) for k, v in pliegue_par_local.items() if k in local_level_list}
+        pliegue_par_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_par_local.items()}
+        pliegue_impar_local = {k: np.array(v) for k, v in pliegue_impar_local.items() if k in local_level_list}
+        pliegue_impar_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_local.items()}
+        
+        
+        inputs = (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local)
+    else:
+        inputs = np.array([lc.lc_global for lc in lightcurves]),  np.array([lc.lc_local for lc in lightcurves]),  
+        
     return inputs
 
-def flatten_from_inputs(inputs):
-    (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
-    
-    flatten = []
-    for (n, data) in sorted(pliegue_par_global.items(), key=lambda d: d[0]):
-        flatten.append(data)
+def flatten_from_inputs(inputs, use_wavelets=True):
+    if use_wavelet:
+        (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
         
-    for (n, data) in sorted(pliegue_impar_global.items(), key=lambda d: d[0]):
-        flatten.append(data)
-    
-    for (n, data) in sorted(pliegue_impar_local.items(), key=lambda d: d[0]):
-        flatten.append(data)
+        flatten = []
+        for (n, data) in sorted(pliegue_par_global.items(), key=lambda d: d[0]):
+            flatten.append(data)
+            
+        for (n, data) in sorted(pliegue_impar_global.items(), key=lambda d: d[0]):
+            flatten.append(data)
         
-    for (n, data) in sorted(pliegue_par_local.items(), key=lambda d: d[0]):
-        flatten.append(data)
+        for (n, data) in sorted(pliegue_impar_local.items(), key=lambda d: d[0]):
+            flatten.append(data)
+            
+        for (n, data) in sorted(pliegue_par_local.items(), key=lambda d: d[0]):
+            flatten.append(data)
+    else:
+        flatten = inputs
 
     return flatten
 
 
-y = np.array([lc.headers['class'] for lc in lightcurves])
+if use_wavelet:
+    y = np.array([lc.headers['class'] for lc in lightcurves])
+else:
+    y = np.array([lc.headers['koi_disposition'] for lc in lightcurves])
 output_classes = np.unique(y)
 class2num = {label: n for n, label in enumerate(sorted(output_classes))}
 num2class = {n: label for n, label in enumerate(sorted(output_classes))}
 
-y = to_categorical([class2num[x] for x in y], num_classes=2)
+if use_wavelet:
+    y = to_categorical([class2num[x] for x in y], num_classes=2)
+else:
+    y = np.array([class2num[x] for x in y])
 
-y_train = np.array([lc.headers['class'] for lc in lightcurves_train])
-y_train = to_categorical([class2num[x] for x in y_train], num_classes=2)
-kepid_train = np.array([lc.headers["id"] for lc in lightcurves_train])
+
+if use_wavelet:
+    y_train = np.array([lc.headers['class'] for lc in lightcurves_train])
+    y_test = np.array([lc.headers['class'] for lc in lightcurves_test])
+    kepid_test = np.array([lc.headers["id"] for lc in lightcurves_test])
+    kepid_train = np.array([lc.headers["id"] for lc in lightcurves_train])
+    y_train = to_categorical([class2num[x] for x in y_train], num_classes=2)
+    y_test = to_categorical([class2num[x] for x in y_test], num_classes=2)
+else:
+    y_train = np.array([lc.headers['koi_disposition'] == "CONFIRMED" for lc in lightcurves_train]).astype(float)
+    y_test = np.array([lc.headers['koi_disposition'] == "CONFIRMED" for lc in lightcurves_test]).astype(float)
+    kepid_test = np.array([lc.headers["kepid"] for lc in lightcurves_test])
+    kepid_train = np.array([lc.headers["kepid"] for lc in lightcurves_train])
+
+
+inputs = inputs_from_dataset(lightcurves_train)
 X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train))
-
-y_test = np.array([lc.headers['class'] for lc in lightcurves_test])
-y_test = to_categorical([class2num[x] for x in y_test], num_classes=2)
-kepid_test = np.array([lc.headers["id"] for lc in lightcurves_test])
 X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test))
+
+if not use_wavelet:
+    X_train = list(X_train)
+    X_train[0] = X_train[0].reshape(list(X_train[0].shape)+[1])
+    X_train[1] = X_train[1].reshape(list(X_train[1].shape)+[1])
+    X_test = list(X_test)
+    X_test[0] = X_test[0].reshape(list(X_test[0].shape)+[1])
+    X_test[1] = X_test[1].reshape(list(X_test[1].shape)+[1])
 
 
 # *X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
@@ -243,17 +281,10 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
 
 def gen_astronet(inputs, classes, activation = 'relu',summary=False):
     
-    (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
+    global_view, local_view = inputs    
 
-    input_shape_global = [x.shape for x in pliegue_par_global.values()]
-    assert input_shape_global == [x.shape for x in pliegue_impar_global.values()]
-    
-    input_shape_local = [x.shape for x in pliegue_par_local.values()]
-    assert input_shape_local == [x.shape for x in pliegue_impar_local.values()]
-
-    
     global_layers = tf.keras.Sequential([
-        Conv1D(16, 5, activation=activation, input_shape=data.shape[1:],),
+        Conv1D(16, 5, activation=activation, input_shape=global_view[0].reshape(-1, 1).shape,),
         Conv1D(16, 5, activation=activation),
         MaxPooling1D(pool_size=5, strides=2),
         Conv1D(32, 5, activation=activation),
@@ -268,15 +299,17 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
         Conv1D(256, 5, activation=activation),
         Conv1D(256, 5, activation=activation),
         MaxPooling1D(pool_size=5, strides=2),
+        Flatten(),
     ])
                                         
     local_layers = tf.keras.Sequential([
-        Conv1D(16, 5, activation=activation, input_shape=data.shape[1:],),
+        Conv1D(16, 5, activation=activation, input_shape=local_view[0].reshape(-1, 1).shape,),
         Conv1D(16, 5, activation=activation),
         MaxPooling1D(pool_size=7, strides=2),
         Conv1D(32, 5, activation=activation),
         Conv1D(32, 5, activation=activation),
         MaxPooling1D(pool_size=7, strides=2),
+        Flatten(),
     ])
     
     model_f = concatenate([global_layers.output,
@@ -287,7 +320,7 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
     model_f = Dense(512,activation=activation)(model_f)
     model_f = Dense(512,activation=activation)(model_f)
     model_f = Dense(1,activation='sigmoid')(model_f)
-    model_f = Model([lobal_layers.input,local_layers.input],model_f)
+    model_f = Model([global_layers.input,local_layers.input],model_f)
     if summary:
       model_f.summary()
     return model_f
@@ -359,17 +392,27 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
 if globals().get("model_1"):
     print("Erasing model_1")
     del model_1
+    import gc
     gc.collect()
     tf.keras.backend.clear_session()
 tf.keras.backend.clear_session()
 # from numba import cuda 
 # device = cuda.get_current_device()
 # device.reset()
-model_1 = gen_model_2_levels(inputs, output_classes)
+if use_wavelet:
+    model_1 = gen_model_2_levels(inputs, output_classes)
+else:
+    model_1 = gen_astronet(inputs, output_classes)
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
-model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5,),
-                metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
+if use_wavelet:
+    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
+                    metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
+
+else:
+    # TODO NaN metrics ??
+    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
+                    metrics=[])
 
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
@@ -378,10 +421,11 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 #                                                  save_weights_only=True,
 #                                                  verbose=1)
 
+
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 
-history_1 = model_1.fit(X_train, y_train, epochs=100, batch_size=16, validation_data=(X_test, y_test),
+history_1 = model_1.fit(X_train, y_train, epochs=30, batch_size=16, validation_data=(X_test, y_test),
                         callbacks=[cp_callback])
 
 # %%
@@ -415,14 +459,11 @@ cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sam
 ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
 
 # %%
-# %load_ext autoreload
-# %autoreload 2
 wrong = y_predict_sampled != y_test_sampled
 
 
 download_dir="data3/"
 import importlib  
-del descarga
 descarga = importlib.import_module("01_descarga")
 process_light_curve = descarga.process_light_curve
 
@@ -445,7 +486,7 @@ df = pd.read_csv(df_path ,skiprows=144)
 df_kepid = pd.DataFrame({"kepid": kepid_test[wrong], "predicted": y_predict_sampled[wrong], "true": y_test_sampled[wrong]})
 df_wrong = pd.merge(df_kepid, df, how="inner")
 
-# results = []
+results = []
 for _, row in tqdm(df_wrong.iterrows(), total=len(df_wrong)):
     try:
         results.append(process_light_curve(row, title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}",
