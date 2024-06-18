@@ -59,40 +59,84 @@ for file in tqdm(files):
 lightcurves = [lc for lc in lightcurves if lc is not None]
 
 # %%
-
-pliegue_par_global = defaultdict(list)
-pliegue_impar_global = defaultdict(list)
-pliegue_par_local = defaultdict(list)
-pliegue_impar_local = defaultdict(list)
-
 lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
 lightcurves = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
 
-for lc in lightcurves:
-    for level in range(1, lc.levels_global+1):
-        pliegue_par_global[level].append(lc.pliegue_par_global.get_approximation_coefficent(level=level))
-        pliegue_impar_global[level].append(lc.pliegue_impar_global.get_approximation_coefficent(level=level))
-    for level in range(1, lc.levels_local+1):
-        pliegue_par_local[level].append(lc.pliegue_par_local.get_approximation_coefficent(level=level))
-        pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
+
+lightcurves_train, lightcurves_test = train_test_split(lightcurves, test_size=0.3, shuffle=True)
+
+def inputs_from_dataset(lightcurves):
+    pliegue_par_global = defaultdict(list)
+    pliegue_impar_global = defaultdict(list)
+    pliegue_par_local = defaultdict(list)
+    pliegue_impar_local = defaultdict(list)
+
+    for lc in lightcurves:
+        for level in range(1, lc.levels_global+1):
+            pliegue_par_global[level].append(lc.pliegue_par_global.get_approximation_coefficent(level=level))
+            pliegue_impar_global[level].append(lc.pliegue_impar_global.get_approximation_coefficent(level=level))
+        for level in range(1, lc.levels_local+1):
+            pliegue_par_local[level].append(lc.pliegue_par_local.get_approximation_coefficent(level=level))
+            pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
+            
+    
+    global_level_list = (1, 3, 5)
+    local_level_list = (1,  3)
+    
+    pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
+    pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
+    pliegue_impar_global = {k: np.array(v) for k, v in pliegue_impar_global.items() if k in global_level_list}
+    pliegue_impar_global = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_global.items()}
+    
+    
+    pliegue_par_local = {k: np.array(v) for k, v in pliegue_par_local.items() if k in local_level_list}
+    pliegue_par_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_par_local.items()}
+    pliegue_impar_local = {k: np.array(v) for k, v in pliegue_impar_local.items() if k in local_level_list}
+    pliegue_impar_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_local.items()}
+    
+    
+    inputs = (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local)
+    return inputs
+
+def flatten_from_inputs(inputs):
+    (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
+    
+    flatten = []
+    for (n, data) in sorted(pliegue_par_global.items(), key=lambda d: d[0]):
+        flatten.append(data)
         
+    for (n, data) in sorted(pliegue_impar_global.items(), key=lambda d: d[0]):
+        flatten.append(data)
+    
+    for (n, data) in sorted(pliegue_impar_local.items(), key=lambda d: d[0]):
+        flatten.append(data)
+        
+    for (n, data) in sorted(pliegue_par_local.items(), key=lambda d: d[0]):
+        flatten.append(data)
 
-global_level_list = (1, 3, 5)
-local_level_list = (1,  3)
-
-pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
-pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
-pliegue_impar_global = {k: np.array(v) for k, v in pliegue_impar_global.items() if k in global_level_list}
-pliegue_impar_global = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_global.items()}
-
-
-pliegue_par_local = {k: np.array(v) for k, v in pliegue_par_local.items() if k in local_level_list}
-pliegue_par_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_par_local.items()}
-pliegue_impar_local = {k: np.array(v) for k, v in pliegue_impar_local.items() if k in local_level_list}
-pliegue_impar_local = {k: v.reshape(list(np.shape(v))+[1]) for k, v in pliegue_impar_local.items()}
+    return flatten
 
 
-inputs = (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local)
+y = np.array([lc.headers['class'] for lc in lightcurves])
+output_classes = np.unique(y)
+class2num = {label: n for n, label in enumerate(sorted(output_classes))}
+num2class = {n: label for n, label in enumerate(sorted(output_classes))}
+
+y = to_categorical([class2num[x] for x in y], num_classes=2)
+
+y_train = np.array([lc.headers['class'] for lc in lightcurves_train])
+y_train = to_categorical([class2num[x] for x in y_train], num_classes=2)
+kepid_train = np.array([lc.headers["id"] for lc in lightcurves_train])
+X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train))
+
+y_test = np.array([lc.headers['class'] for lc in lightcurves_test])
+y_test = to_categorical([class2num[x] for x in y_test], num_classes=2)
+kepid_test = np.array([lc.headers["id"] for lc in lightcurves_test])
+X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test))
+
+
+# *X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
+# *X_test, y_test, kepid_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
 
 # %%
 
@@ -249,18 +293,6 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
     return model_f
 
 # %%
-flatten = []
-for (n, data) in sorted(pliegue_par_global.items(), key=lambda d: d[0]):
-    flatten.append(data)
-    
-for (n, data) in sorted(pliegue_impar_global.items(), key=lambda d: d[0]):
-    flatten.append(data)
-
-for (n, data) in sorted(pliegue_impar_local.items(), key=lambda d: d[0]):
-    flatten.append(data)
-    
-for (n, data) in sorted(pliegue_par_local.items(), key=lambda d: d[0]):
-    flatten.append(data)
 
 # %%
 # import pandas as pd
@@ -277,7 +309,7 @@ for (n, data) in sorted(pliegue_par_local.items(), key=lambda d: d[0]):
 # df_merge.loc[df_merge["class"] != df_merge.koi_disposition][["kepid", "kepoi_name", "class", "koi_disposition"]]
 
 # %%
-y = np.array([lc.headers['class'] for lc in lightcurves])
+# y = np.array([lc.headers['class'] for lc in lightcurves])
 # if np.any(y == "CANDIDATE"):
 #     # Están bien ordenados los datos en flatten??
 #     # Comprobar que hay el mismo número de datos
@@ -286,23 +318,42 @@ y = np.array([lc.headers['class'] for lc in lightcurves])
 #     df_merge = df_merge.query("koi_disposition != 'CANDIDATE'")
 #     y = y[y != "CANDIDATE"]
 #     assert len(df_merge) == len(y)
-output_classes = np.unique(y)
-class2num = {label: n for n, label in enumerate(output_classes)}
-num2class = {n: label for n, label in enumerate(output_classes)}
-y = to_categorical([class2num[x] for x in y], num_classes=2)
+
 
 # %%
-from sklearn.model_selection import KFold
-kf = KFold(n_splits=5)
+# from sklearn.model_selection import KFold
+# kf = KFold(n_splits=5)
 # split = list(kf.split(flatten, y))
 # split[0][0].shape
-y.shape, [x.shape for x in flatten], np.hstack(flatten).shape
+# y.shape, [x.shape for x in flatten], np.hstack(flatten).shape
 
 # %%
-res = train_test_split(*(flatten+[y]+[np.array([lc.headers["id"] for lc in lightcurves])]), test_size=0.3, shuffle=True)
+# np.unique(y_train)
 
-*X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
-*X_test, y_test, kepid_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
+# %%
+# res = train_test_split(*(flatten+[y]+[np.array([lc.headers["id"] for lc in lightcurves])]), test_size=0.3, shuffle=True)
+
+# *X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
+# *X_test, y_test, kepid_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
+
+
+# def get_real(kepid_test):
+#     class2num_vec = np.vectorize(class2num.get)
+#     df_path = 'cumulative_2024.06.01_09.08.01.csv'
+#     df = pd.read_csv(df_path ,skiprows=144)
+#     df_kepid = pd.DataFrame({"kepid": kepid_test})
+#     df_merge = pd.merge(df_kepid, df, how="inner")
+#     df_merge = df_merge.query("koi_disposition != 'CANDIDATE'")
+#     print(df_merge.koi_disposition.unique())
+#     return df_merge.koi_disposition.apply(class2num_vec).to_numpy().astype(np.int)
+
+# print(y_train.shape, y_test.shape)
+# y_train = get_real(kepid_train)
+# y_test = get_real(kepid_test)
+
+# y_train = to_categorical([x for x in y_train], num_classes=2)
+# y_test = to_categorical([x for x in y_test], num_classes=2)
+# print(y_train.shape, y_test.shape)
 
 # https://github.com/tensorflow/tensorflow/issues/48545
 if globals().get("model_1"):
