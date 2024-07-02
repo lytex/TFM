@@ -23,8 +23,9 @@ from collections import defaultdict
 from parallelbar import progress_map
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, concatenate,Conv1D, Flatten,Dropout , BatchNormalization, MaxPooling1D, AveragePooling1D
+from tensorflow.keras.layers import Input, Dense, concatenate,Conv1D, Flatten,Dropout , BatchNormalization, MaxPooling1D, AveragePooling1D, ActivityRegularization
 from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.regularizers import L1L2
 from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from functools import partial
@@ -210,17 +211,20 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
         block.add(Flatten())
         net["local_impar"].append(block)
 
-                             
+
+    l1 = 0.01
+    l2 = 0.0
+    
     model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
     model_f = Dropout(0.5)(model_f)
-    model_f = Dense(256,activation=activation)(model_f)
-    model_f = Dropout(0.5)(model_f)
-    model_f = Dense(256,activation=activation)(model_f)
-    model_f = Dropout(0.5)(model_f)
-    model_f = Dense(256,activation=activation)(model_f)
-    model_f = Dropout(0.5)(model_f)
-    model_f = Dense(256,activation=activation)(model_f)
+    model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
+    model_f = Dropout(l1)(model_f)
+    model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
+    model_f = Dropout(l1)(model_f)
+    model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
+    model_f = Dropout(l1)(model_f)
+    model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
     model_f = Dense(2,activation='softmax')(model_f)
     
     model_f = Model([[m.input for m in net["global_par"]], [m.input for m in net["global_impar"]]  , [m.input for m in net["local_par"]], [m.input for m in net["local_impar"]]],model_f)
@@ -356,6 +360,7 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
 # print(y_train.shape, y_test.shape)
 
 # https://github.com/tensorflow/tensorflow/issues/48545
+import gc
 if globals().get("model_1"):
     print("Erasing model_1")
     del model_1
@@ -365,7 +370,7 @@ tf.keras.backend.clear_session()
 # from numba import cuda 
 # device = cuda.get_current_device()
 # device.reset()
-model_1 = gen_model_2_levels(inputs, output_classes)
+model_1 = gen_model_2_levels(inputs_from_dataset(lightcurves_train), output_classes)
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
 model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5,),
@@ -381,7 +386,7 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 
-history_1 = model_1.fit(X_train, y_train, epochs=100, batch_size=16, validation_data=(X_test, y_test),
+history_1 = model_1.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test),
                         callbacks=[cp_callback])
 
 # %%
@@ -401,6 +406,31 @@ plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
+# summarize history_1 for precision
+plt.plot(history_1.history['precision'])
+plt.plot(history_1.history['val_precision'])
+plt.title('model precision')
+plt.ylabel('precision')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+# summarize history_1 for recall
+plt.plot(history_1.history['recall'])
+plt.plot(history_1.history['val_recall'])
+plt.title('model recall')
+plt.ylabel('recall')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+
+
+plt.plot(np.array(history_1.history['recall'])-np.array(history_1.history['precision']))
+plt.plot(np.array(history_1.history['val_recall'])-np.array(history_1.history['val_precision']))
+plt.title('model recall - model precision')
+plt.ylabel('recall - precision')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 
 # %%
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -410,6 +440,7 @@ y_predict = model_1.predict(X_test)
 # Escoger la clase que tiene mayor probabilidad
 y_predict_sampled = y_predict.argmax(axis=1)
 y_test_sampled = y_test.argmax(axis=1)
+
 
 cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sampled), labels=[str(v) for v in num2class.values()])
 ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
