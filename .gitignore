@@ -172,3 +172,4 @@ all_data*
 data*
 /logs*/
 *.dot
+.workdir/
