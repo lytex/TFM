@@ -133,7 +133,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if save:
         LightCurveShallueCollection(row.kepid, row,
                                     global_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, normalize=True),
-                                    local_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, row.koi_duration, normalize=True)
+                                    local_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=True)
                                    ).save(path)
         
     
@@ -146,13 +146,19 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_odd.sort("time")
     lc_even.sort("time")
     
-    lc_odd_global_flux =  global_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, normalize=True)
-    lc_even_global_flux =  global_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, normalize=True)
+    lc_odd_global_flux =  global_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, normalize=False)
+    lc_even_global_flux =  global_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, normalize=False)
     lc_odd_global = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_global_flux)), flux=lc_odd_global_flux)
     lc_even_global = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_global_flux)), flux=lc_even_global_flux)
-    
-    lc_odd_local_flux =  local_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, row.koi_duration, normalize=True)
-    lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration, normalize=True)
+
+    # Revisar los valores de los periodos, printearlos
+    # Mirar paso a paso y ver si tiene sentido aplicarlo
+    # Mirar pliegue antes de binear (plotear) en par e impar
+    # Comrpobar unidades (está en horas la duración)
+    # Mirar sistemas con múltiples planetas . Se ven varias curvas? No quitarlo de train porque se puede encontrar con esos casos, pero saber que sucede
+    # Normalizar sólamente las wavelets
+    lc_odd_local_flux =  local_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=False)
+    lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=False)
     lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux,)
     lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
     lc_gl_collection = LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local)
@@ -176,10 +182,10 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         lc_even_local = cut_wavelet(lc_even_local, wavelet_window)
     
     logger.info("Calculando wavelets...")
-    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels_global, cut_border_percent=cut_border_percent)
-    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels_global, cut_border_percent=cut_border_percent)
-    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels_local, cut_border_percent=cut_border_percent)
-    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels_local, cut_border_percent=cut_border_percent)
+    lc_w_even_global = apply_wavelet(lc_even_global, wavelet_family, levels_global, cut_border_percent=cut_border_percent, normalize=True)
+    lc_w_odd_global = apply_wavelet(lc_odd_global, wavelet_family, levels_global, cut_border_percent=cut_border_percent, normalize=True)
+    lc_w_even_local = apply_wavelet(lc_even_local, wavelet_family, levels_local, cut_border_percent=cut_border_percent, normalize=True)
+    lc_w_odd_local = apply_wavelet(lc_odd_local, wavelet_family, levels_local, cut_border_percent=cut_border_percent, normalize=True)
 
     headers = {
         "id": row.kepid,
@@ -236,7 +242,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     return lc_wavelet_collection
 
 if __name__ == "__main__":
-    path = "all_data_2024-06-16/"
+    path = "all_data_2024-07-04/"
     download_dir="data3/"
     process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
                             plot=True, plot_comparative=False, save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)

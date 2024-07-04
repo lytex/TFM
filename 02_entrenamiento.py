@@ -30,7 +30,7 @@ from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from functools import partial
 import datetime
-use_wavelet = False
+use_wavelet = True
 
 path = "all_data_2024-06-11/"
 if use_wavelet:
@@ -57,10 +57,10 @@ def load_files(file, path):
 
 func = partial(load_files, path=path)
 
-# lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
+lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
 
-for file in tqdm(files):
-    lightcurves.append(func(file))
+# for file in tqdm(files):
+#     lightcurves.append(func(file))
 lightcurves = [lc for lc in lightcurves if lc is not None]
 
 # %%
@@ -431,7 +431,7 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 
-history_1 = model_1.fit(X_train, y_train, epochs=30, batch_size=16, validation_data=(X_test, y_test),
+history_1 = model_1.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test),
                         callbacks=[cp_callback])
 
 # %%

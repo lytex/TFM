@@ -253,7 +253,7 @@ def fold_curve(light_curve_collection, period, epoch, sigma = 20, sigma_upper = 
     lc_even = lc_fold[lc_fold.even_mask]
     return lc_fold,lc_odd,lc_even
 
-def apply_wavelet(light_curve,w_family, levels,cut_border_percent=0.1):
+def apply_wavelet(light_curve,w_family, levels,cut_border_percent=0.1, normalize=True):
     time = light_curve.time.value
     data = light_curve.flux.value
     lc_wavelet = []
@@ -262,13 +262,13 @@ def apply_wavelet(light_curve,w_family, levels,cut_border_percent=0.1):
     try:
         for level in range(levels):
             level_w = pywt.dwt(data, w_family)
-            lc_wavelet.append(cut_border(level_w,cut_border_percent))
+            lc_wavelet.append(cut_border(level_w,cut_border_percent, normalize=normalize))
             #lc_wavelet.append(level_w)
             data = level_w[0]
     except TypeError: 
         for level in levels:
             level_w = pywt.dwt(data, w_family)
-            lc_wavelet.append(cut_border(level_w,cut_border_percent))
+            lc_wavelet.append(cut_border(level_w,cut_border_percent, normalize=normalize))
             #lc_wavelet.append(level_w)
             data = level_w[0]
     return LightCurveWaveletFoldCollection(light_curve,lc_wavelet)
