@@ -143,7 +143,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_even = lc_fold[lc_fold.even_mask]
     if plot:
         logger.info("Graficando curvas pares e impares...")
-        fig, (ax1, ax2) = plt.subplots(figsize=(12, 16), nrows=1, ncols=2)
+        fig, (ax1, ax2) = plt.subplots(figsize=(12, 16), nrows=2, ncols=1)
         ax1 = lc_odd.plot(ax=ax1)
         ax2 = lc_even.plot(ax=ax2)
         fig.suptitle(f'KIC {row.kepid}: {row.koi_disposition}'+title)
