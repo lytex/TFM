@@ -64,27 +64,9 @@ lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='pr
 lightcurves = [lc for lc in lightcurves if lc is not None]
 
 # %%
-from sklearn.model_selection import KFold
-
-kf = KFold(n_splits=5, shuffle=True)
-
-for i, (train_index, test_index) in enumerate(kf.split(lightcurves)):
-    print(i)
-    print(train_index)
-    print(test_index)
 
 # %%
 binary_classification = True
-
-if use_wavelet:
-    lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
-    lightcurves = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
-else:
-    lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
-    lightcurves = [lc for lc in lightcurves if lc.headers["kepid"] != "CANDIDATE"]
-
-
-lightcurves_train, lightcurves_test = train_test_split(lightcurves, test_size=0.3, shuffle=True)
 
 def inputs_from_dataset(lightcurves):
     if use_wavelet:
@@ -123,7 +105,7 @@ def inputs_from_dataset(lightcurves):
         
     return inputs
 
-def flatten_from_inputs(inputs, use_wavelets=True):
+def flatten_from_inputs(inputs, use_wavelet=True):
     if use_wavelet:
         (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
         
@@ -145,55 +127,80 @@ def flatten_from_inputs(inputs, use_wavelets=True):
     return flatten
 
 
-if use_wavelet:
-    y = np.array([lc.headers['class'] for lc in lightcurves])
-else:
-    y = np.array([lc.headers['koi_disposition'] for lc in lightcurves])
+def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k_fold=None, ind=None):
 
-output_classes = np.unique(y)
-class2num = {label: n for n, label in enumerate(sorted(output_classes))}
-num2class = {n: label for n, label in enumerate(sorted(output_classes))}
+    if use_wavelet:
+        lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
+        lightcurves = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
+    else:
+        lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
+        lightcurves = [lc for lc in lightcurves if lc.headers["kepid"] != "CANDIDATE"]
 
-if use_wavelet:
-    if binary_classification:
+
+
+    if k_fold:
+        if ind < k_fold:
+            raise ValueError("Index ind must be smaller than k_fold")
+        from sklearn.model_selection import KFold
+        kf = KFold(n_splits=k_fold, shuffle=True)
+       train_index, test_index =  [(train_index, test_index) for i, (train_index, test_index) in enumerate(kf.split(lightcurves)) if i == ind][0]
+       lightcurves_train, lightcurves_test = lightcurves[train_index], lightcurves[test_index]
+    else:
+        lightcurves_train, lightcurves_test = train_test_split(lightcurves, test_size=0.3, shuffle=True)
+
+
+    if use_wavelet:
+        y = np.array([lc.headers['class'] for lc in lightcurves])
+    else:
+        y = np.array([lc.headers['koi_disposition'] for lc in lightcurves])
+
+    output_classes = np.unique(y)
+    class2num = {label: n for n, label in enumerate(sorted(output_classes))}
+    num2class = {n: label for n, label in enumerate(sorted(output_classes))}
+
+    if use_wavelet:
+        if binary_classification:
+            y = np.array([class2num[x] for x in y])
+        else:
+            y = to_categorical([class2num[x] for x in y], num_classes=2)
+    else:
         y = np.array([class2num[x] for x in y])
+
+
+    if use_wavelet:
+        if binary_classification:
+            y_train = np.array([lc.headers['class'] == "CONFIRMED" for lc in lightcurves_train]).astype(float)
+            y_test = np.array([lc.headers['class'] == "CONFIRMED" for lc in lightcurves_test]).astype(float)
+        else:
+            y_train = np.array([lc.headers['class'] for lc in lightcurves_train])
+            y_test = np.array([lc.headers['class'] for lc in lightcurves_test])
+            y_train = to_categorical([class2num[x] for x in y_train], num_classes=2)
+            y_test = to_categorical([class2num[x] for x in y_test], num_classes=2)
+        
+        kepid_test = np.array([lc.headers["id"] for lc in lightcurves_test])
+        kepid_train = np.array([lc.headers["id"] for lc in lightcurves_train])
     else:
-        y = to_categorical([class2num[x] for x in y], num_classes=2)
-else:
-    y = np.array([class2num[x] for x in y])
+        y_train = np.array([lc.headers['koi_disposition'] == "CONFIRMED" for lc in lightcurves_train]).astype(float)
+        y_test = np.array([lc.headers['koi_disposition'] == "CONFIRMED" for lc in lightcurves_test]).astype(float)
+        kepid_test = np.array([lc.headers["kepid"] for lc in lightcurves_test])
+        kepid_train = np.array([lc.headers["kepid"] for lc in lightcurves_train])
 
 
-if use_wavelet:
-    if binary_classification:
-        y_train = np.array([lc.headers['class'] == "CONFIRMED" for lc in lightcurves_train]).astype(float)
-        y_test = np.array([lc.headers['class'] == "CONFIRMED" for lc in lightcurves_test]).astype(float)
-    else:
-        y_train = np.array([lc.headers['class'] for lc in lightcurves_train])
-        y_test = np.array([lc.headers['class'] for lc in lightcurves_test])
-        y_train = to_categorical([class2num[x] for x in y_train], num_classes=2)
-        y_test = to_categorical([class2num[x] for x in y_test], num_classes=2)
-    
-    kepid_test = np.array([lc.headers["id"] for lc in lightcurves_test])
-    kepid_train = np.array([lc.headers["id"] for lc in lightcurves_train])
-else:
-    y_train = np.array([lc.headers['koi_disposition'] == "CONFIRMED" for lc in lightcurves_train]).astype(float)
-    y_test = np.array([lc.headers['koi_disposition'] == "CONFIRMED" for lc in lightcurves_test]).astype(float)
-    kepid_test = np.array([lc.headers["kepid"] for lc in lightcurves_test])
-    kepid_train = np.array([lc.headers["kepid"] for lc in lightcurves_train])
+    inputs = inputs_from_dataset(lightcurves_train)
+    X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train))
+    X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test))
 
+    if not use_wavelet:
+        X_train = list(X_train)
+        X_train[0] = X_train[0].reshape(list(X_train[0].shape)+[1])
+        X_train[1] = X_train[1].reshape(list(X_train[1].shape)+[1])
+        X_test = list(X_test)
+        X_test[0] = X_test[0].reshape(list(X_test[0].shape)+[1])
+        X_test[1] = X_test[1].reshape(list(X_test[1].shape)+[1])
 
-inputs = inputs_from_dataset(lightcurves_train)
-X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train))
-X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test))
+    return inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class
 
-if not use_wavelet:
-    X_train = list(X_train)
-    X_train[0] = X_train[0].reshape(list(X_train[0].shape)+[1])
-    X_train[1] = X_train[1].reshape(list(X_train[1].shape)+[1])
-    X_test = list(X_test)
-    X_test[0] = X_test[0].reshape(list(X_test[0].shape)+[1])
-    X_test[1] = X_test[1].reshape(list(X_test[1].shape)+[1])
-
+inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
 
 # *X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
 # *X_test, y_test, kepid_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
