@@ -448,10 +448,10 @@ class F1_Score(tf.keras.metrics.Metric):
 
 if use_wavelet:
     if binary_classification:
-        model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
+        model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
                         metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
     else:
-        model_1.compile(loss = 'categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
+        model_1.compile(loss = 'categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
                         metrics=[F1_Score(), 'categorical_crossentropy'])
 
 else:
