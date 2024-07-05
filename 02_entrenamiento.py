@@ -32,7 +32,7 @@ from functools import partial
 import datetime
 use_wavelet = True
 
-path = "all_data_2024-06-11/"
+path = "all_data_2024-07-04/"
 if use_wavelet:
     files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
 else:
@@ -90,7 +90,7 @@ def inputs_from_dataset(lightcurves):
                 pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
                 
         
-        global_level_list = (1, 5,)
+        global_level_list = (1, 3, 5,)
         local_level_list = (1, 3,)
         
         pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
@@ -412,12 +412,12 @@ else:
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
 if use_wavelet:
-    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
+    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4,),
                     metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
 
 else:
     # TODO NaN metrics ??
-    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
+    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4,),
                     metrics=[])
 
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -431,7 +431,7 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 
-history_1 = model_1.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test),
+history_1 = model_1.fit(X_train, y_train, epochs=100, batch_size=16, validation_data=(X_test, y_test),
                         callbacks=[cp_callback])
 
 # %%

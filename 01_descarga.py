@@ -113,8 +113,8 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_ro = lc_nonans.copy()[~outlier_mask]
     # lc_ro, mask = lc_collection.remove_outliers(sigma=sigma, sigma_upper=sigma_upper, return_mask=True)
 
-    # 3. Plegar en fase y dividir en pares e impares
-    logger.info("Plegando en fase pares/impares...")
+    # 3. Plegar en fase
+    logger.info("Plegando en fase...")
     lc_fold = lc_ro.fold(period = row.koi_period,epoch_time = row.koi_time0bk)
     if plot:
         logger.info('graficando series plegadas en fase...')
@@ -136,11 +136,24 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                                     local_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=True)
                                    ).save(path)
         
-    
+
+     # 4. Dividir en pares e impares
+    logger.info("Diviendo en curvas pares e impares...")
     lc_odd = lc_fold[lc_fold.odd_mask]
     lc_even = lc_fold[lc_fold.even_mask]
+    if plot:
+        logger.info("Graficando curvas pares e impares...")
+        fig, (ax1, ax2) = plt.subplots(figsize=(12, 16), nrows=1, ncols=2)
+        ax1 = lc_odd.plot(ax=ax1)
+        ax2 = lc_even.plot(ax=ax2)
+        fig.suptitle(f'KIC {row.kepid}: {row.koi_disposition}'+title)
+        if plot_folder is not None:
+            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_01_par_impar.png")
+            plt.close('all')
+        else:
+            plt.show()
 
-    # 4. Aplicar bineado en local y global y normalizar
+    # 5. Aplicar bineado en local y global y normalizar
     logger.info("Bineando en vista global y vista local...")
     
     lc_odd.sort("time")
