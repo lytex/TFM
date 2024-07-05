@@ -198,10 +198,10 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
         X_test[0] = X_test[0].reshape(list(X_test[0].shape)+[1])
         X_test[1] = X_test[1].reshape(list(X_test[1].shape)+[1])
 
-    aa = np.bincount(y_train.astype(int))
-    print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
-    aa = np.bincount(y_test.astype(int))
-    print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
+    # aa = np.bincount(y_train.astype(int))
+    # print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
+    # aa = np.bincount(y_test.astype(int))
+    # print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
 
     return inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, lightcurves_train, lightcurves_test, output_classes
 
@@ -437,82 +437,73 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 # %%
-history_1 =  []
-for ind in range(k_fold):
+history_1 =  pd.DataFrame()
+for ind in tqdm(range(k_fold)):
     inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
         lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
-    history_1 += model_1.fit(X_train, y_train.reshape((-1,)), epochs=100, batch_size=16, validation_data=(X_test, y_test.reshape(-1,)),
+    temp = model_1.fit(X_train, y_train, epochs=2, batch_size=128, validation_data=(X_test, y_test),
                             callbacks=[cp_callback])
+    history_1 = history_1.append(pd.DataFrame(temp.history))
+
+history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
 
 # %%
+
+# %%
+if not binary_classification:
 # summarize history_1 for loss
-plt.plot(history_1.history['loss'])
-plt.plot(history_1.history['val_loss'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-
-
-plt.plot(history_1.history['f1_score'])
-plt.plot(history_1.history['val_f1_score'])
-plt.title('model f1_score')
-plt.ylabel('f1_score')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-
-
-plt.plot(history_1.history['categorical_crossentropy'])
-plt.plot(history_1.history['val_categorical_crossentropy'])
-plt.title('model categorical_crossentropy')
-plt.ylabel('categorical_crossentropy')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
+    plt.plot(history_1['loss'])
+    plt.plot(history_1['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+    
+    
+    plt.plot(history_1['f1_score'])
+    plt.plot(history_1['val_f1_score'])
+    plt.title('model f1_score')
+    plt.ylabel('f1_score')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+    
+    
+    plt.plot(history_1['categorical_crossentropy'])
+    plt.plot(history_1['val_categorical_crossentropy'])
+    plt.title('model categorical_crossentropy')
+    plt.ylabel('categorical_crossentropy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+else:
+    # summarize history_1 for accuracy
+    plt.plot(history_1['accuracy'])
+    plt.plot(history_1['val_accuracy'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+    # summarize history_1 for precision
+    plt.plot(history_1['precision'])
+    plt.plot(history_1['val_precision'])
+    plt.title('model precision')
+    plt.ylabel('precision')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+    # summarize history_1 for recall
+    plt.plot(history_1['recall'])
+    plt.plot(history_1['val_recall'])
+    plt.title('model recall')
+    plt.ylabel('recall')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
 
 # %%
-# # summarize history_1 for accuracy
-# plt.plot(history_1.history['accuracy'])
-# plt.plot(history_1.history['val_accuracy'])
-# plt.title('model accuracy')
-# plt.ylabel('accuracy')
-# plt.xlabel('epoch')
-# plt.legend(['train', 'test'], loc='upper left')
-# plt.show()
-# # summarize history_1 for precision
-# plt.plot(history_1.history['precision'])
-# plt.plot(history_1.history['val_precision'])
-# plt.title('model precision')
-# plt.ylabel('precision')
-# plt.xlabel('epoch')
-# plt.legend(['train', 'test'], loc='upper left')
-# plt.show()
-# # summarize history_1 for recall
-# plt.plot(history_1.history['recall'])
-# plt.plot(history_1.history['val_recall'])
-# plt.title('model recall')
-# plt.ylabel('recall')
-# plt.xlabel('epoch')
-# plt.legend(['train', 'test'], loc='upper left')
-# plt.show()
-# # summarize history_1 for precision
-# plt.plot(history_1.history['precision'])
-# plt.plot(history_1.history['val_precision'])
-# plt.title('model precision')
-# plt.ylabel('precision')
-# plt.xlabel('epoch')
-# plt.legend(['train', 'test'], loc='upper left')
-# plt.show()
-# # summarize history_1 for recall
-# plt.plot(history_1.history['recall'])
-# plt.plot(history_1.history['val_recall'])
-# plt.title('model recall')
-# plt.ylabel('recall')
-# plt.xlabel('epoch')
-# plt.legend(['train', 'test'], loc='upper left')
-# plt.show()
 
 # %%
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -521,7 +512,10 @@ num2class_vec = np.vectorize(num2class.get)
 y_predict = model_1.predict(X_test)
 # Escoger la clase que tiene mayor probabilidad
 y_predict_sampled = y_predict.argmax(axis=1)
-y_test_sampled = y_test.argmax(axis=1)
+if binary_classification:
+    y_test_sampled = y_test
+else:
+    y_test_sampled = y_test.argmax(axis=1)
 
 
 cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sampled), labels=[str(v) for v in num2class.values()])
