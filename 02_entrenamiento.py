@@ -139,12 +139,12 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
 
 
     if k_fold:
-        if ind < k_fold:
-            raise ValueError("Index ind must be smaller than k_fold")
+        if ind >= k_fold:
+            raise ValueError("Index ind must be strictly smaller than k_fold")
         from sklearn.model_selection import KFold
         kf = KFold(n_splits=k_fold, shuffle=True)
-       train_index, test_index =  [(train_index, test_index) for i, (train_index, test_index) in enumerate(kf.split(lightcurves)) if i == ind][0]
-       lightcurves_train, lightcurves_test = lightcurves[train_index], lightcurves[test_index]
+        train_index, test_index =  [(train_index, test_index) for i, (train_index, test_index) in enumerate(kf.split(lightcurves)) if i == ind][0]
+        lightcurves_train, lightcurves_test = np.array(lightcurves)[train_index], np.array(lightcurves)[test_index]
     else:
         lightcurves_train, lightcurves_test = train_test_split(lightcurves, test_size=0.3, shuffle=True)
 
@@ -198,9 +198,13 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
         X_test[0] = X_test[0].reshape(list(X_test[0].shape)+[1])
         X_test[1] = X_test[1].reshape(list(X_test[1].shape)+[1])
 
-    return inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class
+    aa = np.bincount(y_train.astype(int))
+    print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
+    aa = np.bincount(y_test.astype(int))
+    print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
 
-inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
+    return inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, lightcurves_train, lightcurves_test, output_classes
+
 
 # *X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
 # *X_test, y_test, kepid_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
@@ -361,93 +365,8 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
       model_f.summary()
     return model_f
 
-# %%
 
 # %%
-# import pandas as pd
-# # TODO Permitir cargar un archivo distinto de descargado
-# df_path = 'cumulative_2024.06.01_09.08.01.csv'
-# df = pd.read_csv(df_path ,skiprows=144)
-# df = df.sort_values(by="kepid")
-# df_data = pd.DataFrame([{"class": lc.headers['class'], "kepoi_name": lc.headers['Kepler_name'] } for lc in lightcurves])
-# df_merge = pd.merge(df_data, df, on='kepoi_name')
-# df_merge = df_merge.sort_values(by="kepid")
-# y = df_merge['koi_disposition'].to_numpy()
-# y_original = np.array([lc.headers['class'] for lc in lightcurves])
-# # Diferencia
-# df_merge.loc[df_merge["class"] != df_merge.koi_disposition][["kepid", "kepoi_name", "class", "koi_disposition"]]
-
-# %%
-# y = np.array([lc.headers['class'] for lc in lightcurves])
-# if np.any(y == "CANDIDATE"):
-#     # Están bien ordenados los datos en flatten??
-#     # Comprobar que hay el mismo número de datos
-#     assert all([len(array) == len(y) for array in flatten])
-#     flatten = [array[y != "CANDIDATE"] for array in flatten]
-#     df_merge = df_merge.query("koi_disposition != 'CANDIDATE'")
-#     y = y[y != "CANDIDATE"]
-#     assert len(df_merge) == len(y)
-
-
-# %%
-# from sklearn.model_selection import KFold
-# kf = KFold(n_splits=5)
-# split = list(kf.split(flatten, y))
-# split[0][0].shape
-# y.shape, [x.shape for x in flatten], np.hstack(flatten).shape
-
-# %%
-# np.unique(y_train)
-# y_test
-aa = np.bincount(y_train.astype(int))
-print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
-aa = np.bincount(y_test.astype(int))
-print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
-
-# %%
-# res = train_test_split(*(flatten+[y]+[np.array([lc.headers["id"] for lc in lightcurves])]), test_size=0.3, shuffle=True)
-
-# *X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
-# *X_test, y_test, kepid_test = [r for n, r in enumerate(res) if n % 2 == 1 ]
-
-
-# def get_real(kepid_test):
-#     class2num_vec = np.vectorize(class2num.get)
-#     df_path = 'cumulative_2024.06.01_09.08.01.csv'
-#     df = pd.read_csv(df_path ,skiprows=144)
-#     df_kepid = pd.DataFrame({"kepid": kepid_test})
-#     df_merge = pd.merge(df_kepid, df, how="inner")
-#     df_merge = df_merge.query("koi_disposition != 'CANDIDATE'")
-#     print(df_merge.koi_disposition.unique())
-#     return df_merge.koi_disposition.apply(class2num_vec).to_numpy().astype(np.int)
-
-# print(y_train.shape, y_test.shape)
-# y_train = get_real(kepid_train)
-# y_test = get_real(kepid_test)
-
-# y_train = to_categorical([x for x in y_train], num_classes=2)
-# y_test = to_categorical([x for x in y_test], num_classes=2)
-# print(y_train.shape, y_test.shape)
-
-# https://github.com/tensorflow/tensorflow/issues/48545
-import gc
-if globals().get("model_1"):
-    print("Erasing model_1")
-    del model_1
-    import gc
-    gc.collect()
-    tf.keras.backend.clear_session()
-# from numba import cuda 
-# device = cuda.get_current_device()
-# device.reset()
-inputs = inputs_from_dataset(lightcurves_train)
-if use_wavelet:
-    model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification)
-else:
-    model_1 = gen_astronet(inputs, output_classes)
-tf.keras.utils.plot_model(model_1, "model.png")
-tf.keras.utils.model_to_dot(model_1).write("model.dot")
-
 class F1_Score(tf.keras.metrics.Metric):
 
     def __init__(self, name='f1_score', **kwargs):
@@ -471,6 +390,30 @@ class F1_Score(tf.keras.metrics.Metric):
         self.recall_fn.reset_states()
         self.f1.assign(0)
 
+
+# %%
+# https://github.com/tensorflow/tensorflow/issues/48545
+import gc
+if globals().get("model_1"):
+    print("Erasing model_1")
+    del model_1
+    import gc
+    gc.collect()
+    tf.keras.backend.clear_session()
+# from numba import cuda 
+# device = cuda.get_current_device()
+# device.reset()
+k_fold = 5
+
+
+inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
+    lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=0)
+
+if use_wavelet:
+    model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification)
+else:
+    model_1 = gen_astronet(inputs, output_classes)
+
 if use_wavelet:
     if binary_classification:
         model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
@@ -484,19 +427,22 @@ else:
     model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
                     metrics=[])
 
-log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-# tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+tf.keras.utils.plot_model(model_1, "model.png")
+tf.keras.utils.model_to_dot(model_1).write("model.dot")
+    
 
-# cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=log_dir,
-#                                                  save_weights_only=True,
-#                                                  verbose=1)
+log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
-
-history_1 = model_1.fit(X_train, y_train.reshape((-1,)), epochs=100, batch_size=16, validation_data=(X_test, y_test.reshape(-1,)),
-                        callbacks=[cp_callback])
+# %%
+history_1 =  []
+for ind in range(k_fold):
+    inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
+        lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
+    history_1 += model_1.fit(X_train, y_train.reshape((-1,)), epochs=100, batch_size=16, validation_data=(X_test, y_test.reshape(-1,)),
+                            callbacks=[cp_callback])
 
 # %%
 # summarize history_1 for loss
