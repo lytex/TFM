@@ -64,6 +64,8 @@ lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='pr
 lightcurves = [lc for lc in lightcurves if lc is not None]
 
 # %%
+binary_classification = False
+
 if use_wavelet:
     lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
     lightcurves = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
@@ -148,12 +150,17 @@ else:
 
 
 if use_wavelet:
-    y_train = np.array([lc.headers['class'] for lc in lightcurves_train])
-    y_test = np.array([lc.headers['class'] for lc in lightcurves_test])
+    if binary_classification:
+        y_train = np.array([lc.headers['class'] == "CONFIRMED" for lc in lightcurves_train]).astype(float)
+        y_test = np.array([lc.headers['class'] == "CONFIRMED" for lc in lightcurves_test]).astype(float)
+    else:
+        y_train = np.array([lc.headers['class'] for lc in lightcurves_train])
+        y_test = np.array([lc.headers['class'] for lc in lightcurves_test])
+        y_train = to_categorical([class2num[x] for x in y_train], num_classes=2)
+        y_test = to_categorical([class2num[x] for x in y_test], num_classes=2)
+    
     kepid_test = np.array([lc.headers["id"] for lc in lightcurves_test])
     kepid_train = np.array([lc.headers["id"] for lc in lightcurves_train])
-    y_train = to_categorical([class2num[x] for x in y_train], num_classes=2)
-    y_test = to_categorical([class2num[x] for x in y_test], num_classes=2)
 else:
     y_train = np.array([lc.headers['koi_disposition'] == "CONFIRMED" for lc in lightcurves_train]).astype(float)
     y_test = np.array([lc.headers['koi_disposition'] == "CONFIRMED" for lc in lightcurves_test]).astype(float)
@@ -183,7 +190,7 @@ if not use_wavelet:
 # inputs
 # %pdb off
 from math import ceil
-def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
+def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binary_classification=False):
     
     (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
 
@@ -252,18 +259,22 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False):
 
     l1 = 0.01
     l2 = 0.0
+    dropout = 0.5
     
     model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
-    model_f = Dropout(0.5)(model_f)
+    model_f = Dropout(dropout)(model_f)
     model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
-    model_f = Dropout(l1)(model_f)
+    model_f = Dropout(dropout)(model_f)
     model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
-    model_f = Dropout(l1)(model_f)
+    model_f = Dropout(dropout)(model_f)
     model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
-    model_f = Dropout(l1)(model_f)
+    model_f = Dropout(dropout)(model_f)
     model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
-    model_f = Dense(2,activation='softmax')(model_f)
+    if binary_classification:
+        model_f = Dense(1,activation='sigmoid')(model_f)
+    else:
+        model_f = Dense(2,activation='softmax')(model_f)
     
     model_f = Model([[m.input for m in net["global_par"]], [m.input for m in net["global_impar"]]  , [m.input for m in net["local_par"]], [m.input for m in net["local_impar"]]],model_f)
     # model_f = Model([[model_p_7.input,model_i_7.input],[model_p_8.input,model_i_8.input]],model_f)
@@ -411,13 +422,41 @@ else:
     model_1 = gen_astronet(inputs, output_classes)
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
+
+class F1_Score(tf.keras.metrics.Metric):
+
+    def __init__(self, name='f1_score', **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.f1 = self.add_weight(name='f1', initializer='zeros')
+        self.precision_fn = tf.keras.metrics.Precision(thresholds=0.5)
+        self.recall_fn = tf.keras.metrics.Recall(thresholds=0.5)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        p = self.precision_fn(y_true, y_pred)
+        r = self.recall_fn(y_true, y_pred)
+        # since f1 is a variable, we use assign
+        self.f1.assign(2 * ((p * r) / (p + r + 1e-6)))
+
+    def result(self):
+        return self.f1
+
+    def reset_state(self):
+        # we also need to reset the state of the precision and recall objects
+        self.precision_fn.reset_states()
+        self.recall_fn.reset_states()
+        self.f1.assign(0)
+
 if use_wavelet:
-    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4,),
-                    metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
+    if binary_classification:
+        model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
+                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
+    else:
+        model_1.compile(loss = 'categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
+                        metrics=[F1_Score(), 'categorical_crossentropy'])
 
 else:
     # TODO NaN metrics ??
-    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4,),
+    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
                     metrics=[])
 
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -435,30 +474,6 @@ history_1 = model_1.fit(X_train, y_train, epochs=100, batch_size=16, validation_
                         callbacks=[cp_callback])
 
 # %%
-# summarize history_1 for accuracy
-plt.plot(history_1.history['accuracy'])
-plt.plot(history_1.history['val_accuracy'])
-plt.title('model accuracy')
-plt.ylabel('accuracy')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-# summarize history_1 for precision
-plt.plot(history_1.history['precision'])
-plt.plot(history_1.history['val_precision'])
-plt.title('model precision')
-plt.ylabel('precision')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-# summarize history_1 for recall
-plt.plot(history_1.history['recall'])
-plt.plot(history_1.history['val_recall'])
-plt.title('model recall')
-plt.ylabel('recall')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
 # summarize history_1 for loss
 plt.plot(history_1.history['loss'])
 plt.plot(history_1.history['val_loss'])
@@ -467,31 +482,66 @@ plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
-# summarize history_1 for precision
-plt.plot(history_1.history['precision'])
-plt.plot(history_1.history['val_precision'])
-plt.title('model precision')
-plt.ylabel('precision')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-# summarize history_1 for recall
-plt.plot(history_1.history['recall'])
-plt.plot(history_1.history['val_recall'])
-plt.title('model recall')
-plt.ylabel('recall')
+
+
+plt.plot(history_1.history['f1_score'])
+plt.plot(history_1.history['val_f1_score'])
+plt.title('model f1_score')
+plt.ylabel('f1_score')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
 
 
-plt.plot(np.array(history_1.history['recall'])-np.array(history_1.history['precision']))
-plt.plot(np.array(history_1.history['val_recall'])-np.array(history_1.history['val_precision']))
-plt.title('model recall - model precision')
-plt.ylabel('recall - precision')
+plt.plot(history_1.history['categorical_crossentropy'])
+plt.plot(history_1.history['val_categorical_crossentropy'])
+plt.title('model categorical_crossentropy')
+plt.ylabel('categorical_crossentropy')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
+
+# %%
+# # summarize history_1 for accuracy
+# plt.plot(history_1.history['accuracy'])
+# plt.plot(history_1.history['val_accuracy'])
+# plt.title('model accuracy')
+# plt.ylabel('accuracy')
+# plt.xlabel('epoch')
+# plt.legend(['train', 'test'], loc='upper left')
+# plt.show()
+# # summarize history_1 for precision
+# plt.plot(history_1.history['precision'])
+# plt.plot(history_1.history['val_precision'])
+# plt.title('model precision')
+# plt.ylabel('precision')
+# plt.xlabel('epoch')
+# plt.legend(['train', 'test'], loc='upper left')
+# plt.show()
+# # summarize history_1 for recall
+# plt.plot(history_1.history['recall'])
+# plt.plot(history_1.history['val_recall'])
+# plt.title('model recall')
+# plt.ylabel('recall')
+# plt.xlabel('epoch')
+# plt.legend(['train', 'test'], loc='upper left')
+# plt.show()
+# # summarize history_1 for precision
+# plt.plot(history_1.history['precision'])
+# plt.plot(history_1.history['val_precision'])
+# plt.title('model precision')
+# plt.ylabel('precision')
+# plt.xlabel('epoch')
+# plt.legend(['train', 'test'], loc='upper left')
+# plt.show()
+# # summarize history_1 for recall
+# plt.plot(history_1.history['recall'])
+# plt.plot(history_1.history['val_recall'])
+# plt.title('model recall')
+# plt.ylabel('recall')
+# plt.xlabel('epoch')
+# plt.legend(['train', 'test'], loc='upper left')
+# plt.show()
 
 # %%
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
