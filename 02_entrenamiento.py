@@ -66,7 +66,7 @@ lightcurves = [lc for lc in lightcurves if lc is not None]
 # %%
 
 # %%
-binary_classification = True
+binary_classification = False
 
 def inputs_from_dataset(lightcurves):
     if use_wavelet:
@@ -84,8 +84,8 @@ def inputs_from_dataset(lightcurves):
                 pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
                 
         
-        global_level_list = (5,)
-        local_level_list = (3,)
+        global_level_list = (1, 5,)
+        local_level_list = (1, 3,)
         
         pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
         pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
@@ -282,9 +282,9 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
         net["local_impar"].append(block)
 
 
-    l1 = 0.01
+    l1 = 0.00
     l2 = 0.0
-    dropout = 0.5
+    dropout = 0.0
     
     model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
@@ -438,16 +438,21 @@ cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 # %%
 history_1 =  pd.DataFrame()
-for ind in tqdm(range(k_fold)):
-    inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
-        lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
-    temp = model_1.fit(X_train, y_train, epochs=2, batch_size=128, validation_data=(X_test, y_test),
-                            callbacks=[cp_callback])
-    history_1 = history_1.append(pd.DataFrame(temp.history))
+
+inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
+    lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
+temp = model_1.fit(X_train, y_train, epochs=100, batch_size=128, validation_data=(X_test, y_test),
+                        callbacks=[cp_callback])
+history_1 = history_1.append(pd.DataFrame(temp.history))
+
+# for ind in tqdm(range(k_fold)):
+#     inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
+#         lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
+#     temp = model_1.fit(X_train, y_train, epochs=100, batch_size=128, validation_data=(X_test, y_test),
+#                             callbacks=[cp_callback])
+#     history_1 = history_1.append(pd.DataFrame(temp.history))
 
 history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
-
-# %%
 
 # %%
 if not binary_classification:
