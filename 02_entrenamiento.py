@@ -64,7 +64,17 @@ lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='pr
 lightcurves = [lc for lc in lightcurves if lc is not None]
 
 # %%
-binary_classification = False
+from sklearn.model_selection import KFold
+
+kf = KFold(n_splits=5, shuffle=True)
+
+for i, (train_index, test_index) in enumerate(kf.split(lightcurves)):
+    print(i)
+    print(train_index)
+    print(test_index)
+
+# %%
+binary_classification = True
 
 if use_wavelet:
     lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
@@ -92,8 +102,8 @@ def inputs_from_dataset(lightcurves):
                 pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
                 
         
-        global_level_list = (1, 3, 5,)
-        local_level_list = (1, 3,)
+        global_level_list = (5,)
+        local_level_list = (3,)
         
         pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
         pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
@@ -139,12 +149,16 @@ if use_wavelet:
     y = np.array([lc.headers['class'] for lc in lightcurves])
 else:
     y = np.array([lc.headers['koi_disposition'] for lc in lightcurves])
+
 output_classes = np.unique(y)
 class2num = {label: n for n, label in enumerate(sorted(output_classes))}
 num2class = {n: label for n, label in enumerate(sorted(output_classes))}
 
 if use_wavelet:
-    y = to_categorical([class2num[x] for x in y], num_classes=2)
+    if binary_classification:
+        y = np.array([class2num[x] for x in y])
+    else:
+        y = to_categorical([class2num[x] for x in y], num_classes=2)
 else:
     y = np.array([class2num[x] for x in y])
 
@@ -377,6 +391,11 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
 
 # %%
 # np.unique(y_train)
+# y_test
+aa = np.bincount(y_train.astype(int))
+print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
+aa = np.bincount(y_test.astype(int))
+print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
 
 # %%
 # res = train_test_split(*(flatten+[y]+[np.array([lc.headers["id"] for lc in lightcurves])]), test_size=0.3, shuffle=True)
@@ -411,13 +430,12 @@ if globals().get("model_1"):
     import gc
     gc.collect()
     tf.keras.backend.clear_session()
-tf.keras.backend.clear_session()
 # from numba import cuda 
 # device = cuda.get_current_device()
 # device.reset()
 inputs = inputs_from_dataset(lightcurves_train)
 if use_wavelet:
-    model_1 = gen_model_2_levels(inputs, output_classes)
+    model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification)
 else:
     model_1 = gen_astronet(inputs, output_classes)
 tf.keras.utils.plot_model(model_1, "model.png")
@@ -470,7 +488,7 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 
-history_1 = model_1.fit(X_train, y_train, epochs=100, batch_size=16, validation_data=(X_test, y_test),
+history_1 = model_1.fit(X_train, y_train.reshape((-1,)), epochs=100, batch_size=16, validation_data=(X_test, y_test.reshape(-1,)),
                         callbacks=[cp_callback])
 
 # %%
