@@ -552,18 +552,18 @@ def process_func_continue(row, title):
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
 df_kepid = pd.DataFrame({"kepid": kepid_test[wrong], "predicted": y_predict_sampled[wrong], "true": y_test_sampled[wrong]})
-df_wrong = pd.merge(df_kepid, df, how="inner")
+df_wrong = pd.merge(df_kepid, df, how="inner", on="kepid")
 
-results = []
-for _, row in tqdm(df_wrong.iterrows(), total=len(df_wrong)):
-    try:
-        results.append(process_light_curve(row, title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}",
-                                           levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
-                                           plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True))
-    except Exception as e:
-        print(f"Exception on {row.kepid}")
-        import traceback
-        traceback.print_exc()
-        results.append(e)
-# results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=20, total=len(df), error_behavior='coerce')
+# results = []
+# for _, row in tqdm(df_wrong.iterrows(), total=len(df_wrong)):
+#     try:
+#         results.append(process_light_curve(row, title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}",
+#                                            levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
+#                                            plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True))
+#     except Exception as e:
+#         print(f"Exception on {row.kepid}")
+#         import traceback
+#         traceback.print_exc()
+#         results.append(e)
+results = progress_map(process_func, [row for _, row in df_wrong.iterrows()], n_cpu=20, total=len(df_wrong), error_behavior='coerce')
 
