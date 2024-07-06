@@ -417,10 +417,14 @@ else:
 if use_wavelet:
     if binary_classification:
         model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), 'binary_crossentropy'])
+                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
     else:
-        model_1.compile(loss = 'categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-                        metrics=[F1_Score(), 'categorical_crossentropy'])
+        from weighted_loss import WeightedCategoricalCrossentropy
+        
+        # model_1.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
+        #                 metrics=[F1_Score(),])
+        model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, 0.2]), optimizer=tf.keras.optimizers.Adam(),
+                        metrics=[F1_Score(),])
 
 else:
     # TODO NaN metrics ??
@@ -474,14 +478,6 @@ if not binary_classification:
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
     
-    
-    plt.plot(history_1['categorical_crossentropy'])
-    plt.plot(history_1['val_categorical_crossentropy'])
-    plt.title('model categorical_crossentropy')
-    plt.ylabel('categorical_crossentropy')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
 else:
     # summarize history_1 for accuracy
     plt.plot(history_1['accuracy'])
@@ -538,6 +534,10 @@ process_light_curve = descarga.process_light_curve
 process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
                         plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True)
 
+def process_func_title(row):
+    title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}"
+    return process_func(row, title=title)
+
 def process_func_continue(row, title):
     try:
         print(title)
@@ -565,5 +565,5 @@ df_wrong = pd.merge(df_kepid, df, how="inner", on="kepid")
 #         import traceback
 #         traceback.print_exc()
 #         results.append(e)
-results = progress_map(process_func, [row for _, row in df_wrong.iterrows()], n_cpu=20, total=len(df_wrong), error_behavior='coerce')
+results = progress_map(process_func_title, [row for _, row in df_wrong.iterrows()], n_cpu=20, total=len(df_wrong), error_behavior='coerce')
 
