@@ -14,15 +14,17 @@ class LightCurveWaveletFoldCollection():
         self._light_curve = light_curve
         self._lc_w_collection = wavelets
 
-    def get_detail_coefficent(self,level = None):
-        if level != None:
-            return self._lc_w_collection[level-1][1]
-        return self._lc_w_collection[:][1]
+    def get_detail_coefficent(self,level=None):
+        if level is not None:
+            return self._lc_w_collection[level-1]
+        else:
+            return self._lc_w_collection
 
-    def get_approximation_coefficent(self,level = None):
-        if level != None:
-            return self._lc_w_collection[level-1][0]
-        return self._lc_w_collection[:][0]
+    def get_approximation_coefficent(self,level=None):
+        if level is not None:
+            return self._lc_w_collection[level-1]
+        else:
+            return self._lc_w_collection
     
     def get_wavelets(self):
         return self._lc_w_collection
@@ -33,17 +35,17 @@ class LightCurveWaveletFoldCollection():
         # data = self._light_curve.flux.value
         # plt.figure(figsize=(16, 4))
         # plt.plot(time,data)
-        fig, axarr = plt.subplots(nrows=len(wavelet), ncols=2, figsize=(16,12))
+        fig, axarr = plt.subplots(nrows=len(wavelet), ncols=1, figsize=(16,12))
         for i,lc_w in enumerate(wavelet):
-            (data, coeff_d) = lc_w
-            axarr[i, 0].plot(data, 'r')
-            axarr[i, 1].plot(coeff_d, 'g')
-            axarr[i, 0].set_ylabel("Level {}".format(i + 1), fontsize=14, rotation=90)
+            data = lc_w
+            axarr[i].plot(data, 'r')
+            # axarr[i, 1].plot(coeff_d, 'g')
+            axarr[i].set_ylabel("Level {}".format(i + 1), fontsize=14, rotation=90)
             # axarr[i, 0].set_yticklabels([])
             if i == 0:
-                axarr[i, 0].set_title("Approximation coefficients", fontsize=14)
-                axarr[i, 1].set_title("Detail coefficients", fontsize=14)
-            axarr[i, 1].set_yticklabels([])
+                axarr[i].set_title("Approximation coefficients", fontsize=14)
+                # axarr[i, 1].set_title("Detail coefficients", fontsize=14)
+            axarr[i].set_yticklabels([])
         return fig, axarr
         # plt.show()
 
@@ -74,15 +76,15 @@ class LightCurveWaveletCollection():
         wavelet_i=w_inpar_Collection.get_wavelets()
         plt.figure(figsize=(26, 8))
         plt.plot(light_curve_p.time.value,light_curve_p.flux.value,c='blue',label='par')
-        plt.plot(light_curve_i.time.value,light_curve_i.flux.value,c='red',label='inpar')
+        plt.plot(light_curve_i.time.value,light_curve_i.flux.value,c='red',label='impar')
         
         fig, axarr = plt.subplots(nrows=len(wavelet_p), ncols=2, figsize=(26,26))
         for i,zip_curves in enumerate(zip(wavelet_p,wavelet_i)):
             (data_p, coeff_p),(data_i, coeff_i) = zip_curves
             axarr[i, 0].plot(data_p,c='blue',label='par')
-            axarr[i, 0].plot(data_i, c='red',label='inpar')
+            axarr[i, 0].plot(data_i, c='red',label='impar')
             axarr[i, 1].plot(coeff_p, c='blue',label='par')
-            axarr[i, 1].plot(coeff_i, c='red',label='inpar')
+            axarr[i, 1].plot(coeff_i, c='red',label='impar')
             axarr[i, 0].set_ylabel("Level {}".format(i + 1), fontsize=14, rotation=90)
             axarr[i, 0].set_yticklabels([])
             if i == 0:
@@ -253,24 +255,20 @@ def fold_curve(light_curve_collection, period, epoch, sigma = 20, sigma_upper = 
     lc_even = lc_fold[lc_fold.even_mask]
     return lc_fold,lc_odd,lc_even
 
+def normalize_timeseries(data_new):
+    data_new -= np.median(data_new)
+    data_new /= np.abs(np.min(data_new))
+
 def apply_wavelet(light_curve,w_family, levels,cut_border_percent=0.1, normalize=True):
     time = light_curve.time.value
     data = light_curve.flux.value
     lc_wavelet = []
-    # TODO usar wavedec
-    # lc_wavelet2 = pywt.wavedec(data, w_family, level=levels)
-    try:
-        for level in range(levels):
-            level_w = pywt.dwt(data, w_family)
-            lc_wavelet.append(cut_border(level_w,cut_border_percent, normalize=normalize))
-            #lc_wavelet.append(level_w)
-            data = level_w[0]
-    except TypeError: 
-        for level in levels:
-            level_w = pywt.dwt(data, w_family)
-            lc_wavelet.append(cut_border(level_w,cut_border_percent, normalize=normalize))
-            #lc_wavelet.append(level_w)
-            data = level_w[0]
+    for level in range(1, levels+1):
+        # [cA_n, cD_n, cD_n-1, …, cD2, cD1]
+        lc_wavelet.append(pywt.wavedec(data, w_family, mode='periodic', level=level,)[0])
+    if normalize:
+        lc_wavelet = [x - np.median(x) for x in lc_wavelet]
+        lc_wavelet = [x / np.abs(np.min(x)) for x in lc_wavelet]
     return LightCurveWaveletFoldCollection(light_curve,lc_wavelet)
 
 def load_light_curve(kepler_id,mission='Kepler'):

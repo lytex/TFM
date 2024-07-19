@@ -32,7 +32,7 @@ from functools import partial
 import datetime
 use_wavelet = True
 
-path = "all_data_2024-07-04/"
+path = "all_data_2024-07-17/"
 if use_wavelet:
     files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
 else:

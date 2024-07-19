@@ -32,7 +32,7 @@ import os
 import matplotlib.pyplot as plt
 from LCWavelet import *
 from binning import global_view, local_view
-from parallelbar import progress_map
+from parallelbar import progress_map, progress_imap
 from tqdm import tqdm
 from functools import partial
 import logging
@@ -255,7 +255,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     return lc_wavelet_collection
 
 if __name__ == "__main__":
-    path = "all_data_2024-07-04/"
+    path = "all_data_2024-07-17/"
     download_dir="data3/"
     process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
                             plot=True, plot_comparative=False, save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)
@@ -269,10 +269,11 @@ if __name__ == "__main__":
             return e
     
     
-    # results = []
-    # for _, row in tqdm(df.iterrows(), total=len(df)):
-    #     results.append(process_func_continue(row))
-    results = progress_map(process_func, [row for _, row in df.iterrows()], n_cpu=20, total=len(df), error_behavior='coerce')
+    results = []
+    for _, row in tqdm(df.iterrows(), total=len(df)):
+        results.append(process_func(row))
+        
+    # n_proc = 20; results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc//10)
     
     failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
     failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
