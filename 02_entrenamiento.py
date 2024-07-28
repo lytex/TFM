@@ -30,7 +30,7 @@ from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from functools import partial
 import datetime
-use_wavelet = True
+use_wavelet = False
 
 path = "all_data_2024-07-17/"
 if use_wavelet:
@@ -66,7 +66,7 @@ lightcurves = [lc for lc in lightcurves if lc is not None]
 # %%
 
 # %%
-binary_classification = False
+binary_classification = True
 
 def inputs_from_dataset(lightcurves):
     if use_wavelet:
@@ -187,8 +187,8 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
 
 
     inputs = inputs_from_dataset(lightcurves_train)
-    X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train))
-    X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test))
+    X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train), use_wavelet=use_wavelet)
+    X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test), use_wavelet=use_wavelet)
 
     if not use_wavelet:
         X_train = list(X_train)
@@ -429,12 +429,12 @@ if use_wavelet:
 else:
     # TODO NaN metrics ??
     model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
-                    metrics=[])
+                    metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
 
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
     
-
+    
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
@@ -445,7 +445,7 @@ history_1 =  pd.DataFrame()
 
 inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
     lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
-temp = model_1.fit(X_train, y_train, epochs=100, batch_size=128, validation_data=(X_test, y_test),
+temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
                         callbacks=[cp_callback])
 history_1 = history_1.append(pd.DataFrame(temp.history))
 
@@ -457,6 +457,9 @@ history_1 = history_1.append(pd.DataFrame(temp.history))
 #     history_1 = history_1.append(pd.DataFrame(temp.history))
 
 history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
+
+# %%
+temp.history
 
 # %%
 if not binary_classification:
