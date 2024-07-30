@@ -30,7 +30,10 @@ from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from functools import partial
 import datetime
-use_wavelet = False
+
+use_wavelet = True
+binary_classification = False
+k_fold = 5
 
 path = "all_data_2024-07-17/"
 if use_wavelet:
@@ -38,6 +41,8 @@ if use_wavelet:
 else:
     files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
 lightcurves = []
+
+# files = files[:100]
 
 def load_files(file, path):
     try:
@@ -57,17 +62,14 @@ def load_files(file, path):
 
 func = partial(load_files, path=path)
 
-lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
+lightcurves = progress_map(func, files[10:], n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
 
 # for file in tqdm(files):
 #     lightcurves.append(func(file))
 lightcurves = [lc for lc in lightcurves if lc is not None]
 
-# %%
 
 # %%
-binary_classification = True
-
 def inputs_from_dataset(lightcurves):
     if use_wavelet:
         pliegue_par_global = defaultdict(list)
@@ -127,7 +129,7 @@ def flatten_from_inputs(inputs, use_wavelet=True):
     return flatten
 
 
-def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k_fold=None, ind=None):
+def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k_fold=None, ind=None, test_size=0.3):
 
     if use_wavelet:
         lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
@@ -146,7 +148,11 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
         train_index, test_index =  [(train_index, test_index) for i, (train_index, test_index) in enumerate(kf.split(lightcurves)) if i == ind][0]
         lightcurves_train, lightcurves_test = np.array(lightcurves)[train_index], np.array(lightcurves)[test_index]
     else:
-        lightcurves_train, lightcurves_test = train_test_split(lightcurves, test_size=0.3, shuffle=True)
+        if test_size == 1.0:
+            lightcurves_train = []
+            lightcurves_test = lightcurves
+        else:
+            lightcurves_train, lightcurves_test = train_test_split(lightcurves, test_size=test_size, shuffle=True)
 
 
     if use_wavelet:
@@ -203,7 +209,7 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
     # aa = np.bincount(y_test.astype(int))
     # print(aa, aa[0]/sum(aa), aa[1]/sum(aa))
 
-    return inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, lightcurves_train, lightcurves_test, output_classes
+    return inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, output_classes
 
 
 # *X_train, y_train, kepid_train = [r for n, r in enumerate(res) if n % 2 == 0 ]
@@ -392,6 +398,12 @@ class F1_Score(tf.keras.metrics.Metric):
 
 
 # %%
+inputs, _, X_entire, _, y_entire, _, _, kepid_train, num2class, \
+    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0)
+
+pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
+
+# %%
 # https://github.com/tensorflow/tensorflow/issues/48545
 import gc
 if globals().get("model_1"):
@@ -403,11 +415,10 @@ if globals().get("model_1"):
 # from numba import cuda 
 # device = cuda.get_current_device()
 # device.reset()
-k_fold = 5
 
 
-inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
-    lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=0)
+inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
+    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=0.99)
 
 if use_wavelet:
     model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification)
@@ -423,7 +434,12 @@ if use_wavelet:
         
         # model_1.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
         #                 metrics=[F1_Score(),])
-        model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, 0.2]), optimizer=tf.keras.optimizers.Adam(),
+
+        
+        count = pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
+        frac = 0.5
+        print("count:",  count[0]/count[1]*frac)
+        model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
                         metrics=[F1_Score(),])
 
 else:
@@ -441,25 +457,30 @@ log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 # %%
+
 history_1 =  pd.DataFrame()
 
-inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
-    lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
-temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
-                        callbacks=[cp_callback])
-history_1 = history_1.append(pd.DataFrame(temp.history))
+if k_fold is None:
+    inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, \
+        output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
+    temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
+                            callbacks=[cp_callback])
+    history_1 = history_1.append(pd.DataFrame(temp.history))
 
-# for ind in tqdm(range(k_fold)):
-#     inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, num2class, num2class, \
-#         lightcurves_train, lightcurves_test, output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
-#     temp = model_1.fit(X_train, y_train, epochs=100, batch_size=128, validation_data=(X_test, y_test),
-#                             callbacks=[cp_callback])
-#     history_1 = history_1.append(pd.DataFrame(temp.history))
+else:
+    lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=0.2, shuffle=True)
+    _, _, X_test, _, y_test, _, kepid_test, _, num2class, \
+        _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0)
+    for ind in tqdm(range(k_fold)):
+        inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
+            output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet)
+        inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
+            output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
+        temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
+                                callbacks=[cp_callback])
+        history_1 = history_1.append(pd.DataFrame(temp.history))
 
 history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
-
-# %%
-temp.history
 
 # %%
 if not binary_classification:
@@ -526,6 +547,8 @@ cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sam
 ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
 
 # %%
+0/0
+
 wrong = y_predict_sampled != y_test_sampled
 
 

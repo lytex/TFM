@@ -14,7 +14,7 @@
 # ---
 
 # %%
-# %pdb off
+# %pdb on
 # %matplotlib agg
 
 from IPython.display import display
