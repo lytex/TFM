@@ -5,3 +5,4 @@ pandas
 astropy<5.0
 parallelbar
 pydot
+PyQt5<5.9

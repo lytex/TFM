@@ -57,6 +57,7 @@ pycparser==2.21           # via cffi
 pydot==2.0.0              # via -r requirements.in
 pyerfa==2.0.0.3           # via astropy
 pyparsing==3.1.2          # via matplotlib, pydot
+pyqt5==5.8.2              # via -r requirements.in
 python-dateutil==2.9.0.post0  # via matplotlib, pandas
 pytz==2024.1              # via pandas
 pyvo==1.2.1               # via astroquery
@@ -68,6 +69,7 @@ rsa==4.9                  # via google-auth
 scikit-learn==1.0.2       # via lightkurve
 scipy==1.7.3              # via lightkurve, oktopus, scikit-learn
 secretstorage==3.3.3      # via keyring
+sip==4.19.8               # via pyqt5
 six==1.16.0               # via astunparse, google-pasta, html5lib, keras-preprocessing, patsy, python-dateutil, tensorflow
 soupsieve==2.4.1          # via beautifulsoup4
 tensorboard==2.9.1        # via tensorflow
