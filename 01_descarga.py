@@ -14,8 +14,10 @@
 # ---
 
 # %%
-# %pdb on
-# %matplotlib agg
+# %matplotlib -l
+
+# %%
+# %matplotlib qt
 
 from IPython.display import display
 import warnings
@@ -30,6 +32,7 @@ import pickle
 import time
 import os
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from LCWavelet import *
 from binning import global_view, local_view
 from parallelbar import progress_map, progress_imap
@@ -37,7 +40,8 @@ from tqdm import tqdm
 from functools import partial
 import logging
 
-
+plt.ion()
+# mpl.use("module://mplcairo.qt")
 
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
@@ -110,7 +114,21 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     from astropy.stats.sigma_clipping import sigma_clip
     res, min_, max_ = sigma_clip(data=lc_nonans.flux, sigma=sigma, sigma_upper=sigma_upper, return_bounds=True)
     outlier_mask = res.mask
-    lc_ro = lc_nonans.copy()[~outlier_mask]
+    lc_ro_1 = lc_nonans.copy()[~outlier_mask]
+    lc_ro = lc_ro_1.flatten()
+    logger.info("Graficando serie completa")
+    mask_lc_ro = lc_ro.create_transit_mask(period=row.koi_period, duration=row.koi_duration/24.0, transit_time=row.koi_time0bk)
+    fig, ax = plt.subplots(figsize=(16, 12))
+    df_lc_ro = lc_ro.to_pandas().reset_index()[['time', 'flux']]
+    ax.scatter(df_lc_ro.time[~mask_lc_ro], df_lc_ro.flux[~mask_lc_ro], c='b', marker='.')
+    ax.scatter(df_lc_ro.time[mask_lc_ro], df_lc_ro.flux[mask_lc_ro], c='r', marker='*')
+    ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}'+title)
+    if plot_folder is not None:
+        plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_00_no_plegado.svg")
+        plt.close('all')
+    else:
+        plt.show()
+        plt.pause(.001)
     # lc_ro, mask = lc_collection.remove_outliers(sigma=sigma, sigma_upper=sigma_upper, return_mask=True)
 
     # 3. Plegar en fase
@@ -129,6 +147,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
             plt.close('all')
         else:
             plt.show()
+            plt.pause(.001)
 
     if save:
         LightCurveShallueCollection(row.kepid, row,
@@ -152,6 +171,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
             plt.close('all')
         else:
             plt.show()
+            plt.pause(.001)
 
     # 5. Aplicar bineado en local y global y normalizar
     logger.info("Bineando en vista global y vista local...")
@@ -185,6 +205,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
             plt.close('all')
         else:
             plt.show()
+            plt.pause(.001)
 
     # para quitar oscilaciones en los bordes (quizás mejor no guardar los datos con esto quitado)
     if wavelet_window is not None:
@@ -246,6 +267,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         else:
             lc_wavelet_collection.plot()
             plt.show()
+            plt.pause(.001)
     if(plot_comparative):
         logger.info('graficando wavelets obtenidas...')
         lc_wavelet_collection.plot_comparative()
@@ -258,7 +280,7 @@ if __name__ == "__main__":
     path = "all_data_2024-07-17/"
     download_dir="data3/"
     process_func =  partial(process_light_curve, levels_global=6, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
-                            plot=True, plot_comparative=False, save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)
+                            plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, df_path=df_path, plot_folder=None, use_download_cache=True)
     
     def process_func_continue(row):
         try:
@@ -269,11 +291,11 @@ if __name__ == "__main__":
             return e
     
     
-    # results = []
-    # for _, row in tqdm(df.iterrows(), total=len(df)):
-    #     results.append(process_func(row))
+    results = []
+    for _, row in tqdm(df.iterrows(), total=len(df)):
+        results.append(process_func(row))
 
-    n_proc = 20; results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc//10)
+    # n_proc = 20; results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc//10)
     
     failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
     failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
