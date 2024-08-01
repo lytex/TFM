@@ -124,7 +124,6 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     ax.scatter(df_lc_ro.time[mask_lc_ro], df_lc_ro.flux[mask_lc_ro], c='r', marker='*')
     ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}'+title)
     if plot_folder is not None:
-        plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_00_no_plegado.svg")
         plt.close('all')
     else:
         plt.show()
