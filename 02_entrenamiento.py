@@ -31,8 +31,8 @@ from sklearn.model_selection import train_test_split
 from functools import partial
 import datetime
 
-use_wavelet = True
-binary_classification = False
+use_wavelet = False
+binary_classification = True
 k_fold = 5
 global_level_list = (1, 5,)
 local_level_list = (1, 3,)
@@ -376,17 +376,18 @@ def gen_astronet(inputs, classes, activation = 'relu',summary=False):
 # %%
 class F1_Score(tf.keras.metrics.Metric):
 
-    def __init__(self, name='f1_score', **kwargs):
+    def __init__(self, name='f1_score', beta=1.0, **kwargs):
         super().__init__(name=name, **kwargs)
         self.f1 = self.add_weight(name='f1', initializer='zeros')
         self.precision_fn = tf.keras.metrics.Precision(thresholds=0.5)
         self.recall_fn = tf.keras.metrics.Recall(thresholds=0.5)
+        self.beta = beta
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         p = self.precision_fn(y_true, y_pred)
         r = self.recall_fn(y_true, y_pred)
         # since f1 is a variable, we use assign
-        self.f1.assign(2 * ((p * r) / (p + r + 1e-6)))
+        self.f1.assign((1+self.beta**2) * ((p * r) / (self.beta**2*p + r + 1e-6)))
 
     def result(self):
         return self.f1
@@ -467,12 +468,6 @@ class GetBest(Callback):
 
 
 # %%
-inputs, _, X_entire, _, y_entire, _, _, kepid_train, num2class, \
-    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0)
-
-pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
-
-# %%
 # https://github.com/tensorflow/tensorflow/issues/48545
 import gc
 if globals().get("model_1"):
@@ -524,8 +519,10 @@ if use_wavelet:
                         metrics=[F1_Score(),])
 
 else:
+    count =  pd.DataFrame({'col': y_entire}).reset_index(drop=False).groupby('col').index.count()
+    print("count:",  count[0]/count[1]*frac)
     model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-                    metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
+                    metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(beta=count[0]/count[1]*frac)])
 
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
