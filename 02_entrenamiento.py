@@ -42,7 +42,7 @@ else:
     files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
 lightcurves = []
 
-files = files[:50]
+# files = files[:100]
 
 def load_files(file, path):
     try:
@@ -62,7 +62,7 @@ def load_files(file, path):
 
 func = partial(load_files, path=path)
 
-lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
+lightcurves = progress_map(func, files[10:], n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
 
 # for file in tqdm(files):
 #     lightcurves.append(func(file))
@@ -404,9 +404,6 @@ inputs, _, X_entire, _, y_entire, _, _, kepid_train, num2class, \
 pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
 
 # %%
-len(lightcurves)
-
-# %%
 # https://github.com/tensorflow/tensorflow/issues/48545
 import gc
 if globals().get("model_1"):
@@ -419,18 +416,9 @@ if globals().get("model_1"):
 # device = cuda.get_current_device()
 # device.reset()
 
-log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
-
-if use_wavelet:
-    lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["id"])
-    lightcurves_filtered = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
-else:
-    lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
-    lightcurves_filtered = [lc for lc in lightcurves if lc.headers["kepid"] != "CANDIDATE"]
 
 inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
-    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1)
+    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=0.99)
 
 if use_wavelet:
     model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification)
@@ -455,11 +443,18 @@ if use_wavelet:
                         metrics=[F1_Score(),])
 
 else:
+    # TODO NaN metrics ??
     model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
                     metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
 
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
+    
+    
+log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 # %%
 
@@ -484,38 +479,6 @@ else:
         temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
                                 callbacks=[cp_callback])
         history_1 = history_1.append(pd.DataFrame(temp.history))
-
-
-        del model_1
-        gc.collect()
-        tf.keras.backend.clear_session()
-
-        if use_wavelet:
-            model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification)
-        else:
-            model_1 = gen_astronet(inputs, output_classes)
-        
-        if use_wavelet:
-            if binary_classification:
-                model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-                                metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
-            else:
-                from weighted_loss import WeightedCategoricalCrossentropy
-                
-                # model_1.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-                #                 metrics=[F1_Score(),])
-        
-                
-                count = pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
-                frac = 0.5
-                print("count:",  count[0]/count[1]*frac)
-                model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
-                                metrics=[F1_Score(),])
-        
-        else:
-            model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
-                            metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
-        
 
 history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
 
