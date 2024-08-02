@@ -34,6 +34,13 @@ import datetime
 use_wavelet = True
 binary_classification = False
 k_fold = 5
+global_level_list = (1, 5,)
+local_level_list = (1, 3,)
+l1 = 0.00
+l2 = 0.0
+dropout = 0.0
+
+frac = 0.5 # fracción del porcentaje relativo de datos de cada clase que multiplica a la categorical_crossentropy
 
 path = "all_data_2024-07-17/"
 if use_wavelet:
@@ -70,7 +77,7 @@ lightcurves = [lc for lc in lightcurves if lc is not None]
 
 
 # %%
-def inputs_from_dataset(lightcurves):
+def inputs_from_dataset(lightcurves, global_level_list, local_level_list):
     if use_wavelet:
         pliegue_par_global = defaultdict(list)
         pliegue_impar_global = defaultdict(list)
@@ -85,9 +92,6 @@ def inputs_from_dataset(lightcurves):
                 pliegue_par_local[level].append(lc.pliegue_par_local.get_approximation_coefficent(level=level))
                 pliegue_impar_local[level].append(lc.pliegue_impar_local.get_approximation_coefficent(level=level))
                 
-        
-        global_level_list = (1, 5,)
-        local_level_list = (1, 3,)
         
         pliegue_par_global = {k: np.array(v) for k, v in pliegue_par_global.items() if k in global_level_list}
         pliegue_par_global = {k: v.reshape(list(v.shape)+[1]) for k, v in pliegue_par_global.items()}
@@ -192,9 +196,11 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
         kepid_train = np.array([lc.headers["kepid"] for lc in lightcurves_train])
 
 
-    inputs = inputs_from_dataset(lightcurves_train)
-    X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train), use_wavelet=use_wavelet)
-    X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test), use_wavelet=use_wavelet)
+    inputs = inputs_from_dataset(lightcurves_train, global_level_list=global_level_list, local_level_list=local_level_list)
+    X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train, global_level_list=global_level_list, local_level_list=local_level_list),
+                                  use_wavelet=use_wavelet)
+    X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test, global_level_list=global_level_list, local_level_list=local_level_list),
+                                 use_wavelet=use_wavelet)
 
     if not use_wavelet:
         X_train = list(X_train)
@@ -221,7 +227,7 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
 # inputs
 # %pdb off
 from math import ceil
-def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binary_classification=False):
+def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binary_classification=False, l1=0.0, l2=0.0, dropout=0.0):
     
     (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
 
@@ -287,11 +293,6 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
         block.add(Flatten())
         net["local_impar"].append(block)
 
-
-    l1 = 0.00
-    l2 = 0.0
-    dropout = 0.0
-    
     model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
     model_f = Dropout(dropout)(model_f)
@@ -501,7 +502,8 @@ inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
     output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1)
 
 if use_wavelet:
-    model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification)
+    model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification, l1=l1, l2=l2, dropout=dropout)
+    
 else:
     model_1 = gen_astronet(inputs, output_classes)
 
@@ -517,7 +519,6 @@ if use_wavelet:
 
         
         count = pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
-        frac = 0.5
         print("count:",  count[0]/count[1]*frac)
         model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
                         metrics=[F1_Score(),])
@@ -548,7 +549,7 @@ else:
             output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet)
         inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
             output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
-        temp = model_1.fit(X_train, y_train, epochs=30, batch_size=128, validation_data=(X_test, y_test),
+        temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
                                 callbacks=[best_callback])
         history_1 = history_1.append(pd.DataFrame(temp.history))
 
@@ -670,3 +671,6 @@ df_wrong = pd.merge(df_kepid, df, how="inner", on="kepid")
 #         results.append(e)
 results = progress_map(process_func_title, [row for _, row in df_wrong.iterrows()], n_cpu=20, total=len(df_wrong), error_behavior='coerce')
 
+
+# %%
+len({x.kepler_id for x in lightcurves_val}), len({x.kepler_id for x in lightcurves_kfold}), len({x.kepler_id for x in lightcurves_val}.intersection({x.kepler_id for x in lightcurves_kfold}))
