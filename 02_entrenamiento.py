@@ -416,9 +416,18 @@ if globals().get("model_1"):
 # device = cuda.get_current_device()
 # device.reset()
 
+log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
+
+if use_wavelet:
+    lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["id"])
+    lightcurves_filtered = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
+else:
+    lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
+    lightcurves_filtered = [lc for lc in lightcurves if lc.headers["kepid"] != "CANDIDATE"]
 
 inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
-    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=0.99)
+    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1)
 
 if use_wavelet:
     model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification)
@@ -443,18 +452,11 @@ if use_wavelet:
                         metrics=[F1_Score(),])
 
 else:
-    # TODO NaN metrics ??
     model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=1e-7,),
                     metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
 
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
-    
-    
-log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-
-
-cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
 
 # %%
 
