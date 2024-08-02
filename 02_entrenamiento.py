@@ -136,11 +136,11 @@ def flatten_from_inputs(inputs, use_wavelet=True):
 def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k_fold=None, ind=None, test_size=0.3):
 
     if use_wavelet:
-        lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["id"])
+        lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["Kepler_name"])
         lightcurves = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
     else:
-        lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
-        lightcurves = [lc for lc in lightcurves if lc.headers["kepid"] != "CANDIDATE"]
+        lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["kepoi_name"])
+        lightcurves = [lc for lc in lightcurves if lc.headers["koi_disposition"] != "CANDIDATE"]
 
 
 
@@ -491,7 +491,7 @@ if use_wavelet:
     lightcurves_filtered = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
 else:
     lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
-    lightcurves_filtered = [lc for lc in lightcurves if lc.headers["kepid"] != "CANDIDATE"]
+    lightcurves_filtered = [lc for lc in lightcurves if lc.headers["koi_disposition"] != "CANDIDATE"]
 
 inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
     output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1)
