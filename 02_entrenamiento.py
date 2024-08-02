@@ -27,6 +27,7 @@ from tensorflow.keras.layers import Input, Dense, concatenate,Conv1D, Flatten,Dr
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.regularizers import L1L2
 from keras.utils import to_categorical
+from keras.utils.layer_utils import count_params
 from sklearn.model_selection import train_test_split
 from functools import partial
 import datetime
@@ -40,7 +41,7 @@ l1 = 0.00
 l2 = 0.0
 dropout = 0.0
 
-frac = 0.5 # fracción del porcentaje relativo de datos de cada clase que multiplica a la categorical_crossentropy
+frac = 0.5 # fracción del porcentaje relativo de datos de cada clase que multiplica a la categorical_crossentropy, o fracción de beta
 
 path = "all_data_2024-07-17/"
 if use_wavelet:
@@ -519,13 +520,18 @@ if use_wavelet:
                         metrics=[F1_Score(),])
 
 else:
+    from weighted_loss import WeightedBinaryCrossentropy
+    
     count =  pd.DataFrame({'col': y_entire}).reset_index(drop=False).groupby('col').index.count()
     print("count:",  count[0]/count[1]*frac)
-    model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
+    from FBetaScore import DifferentiableFBetaScore
+    k_fold = None
+    model_1.compile(loss=WeightedBinaryCrossentropy(weights=[0.01, 0.1]), optimizer=tf.keras.optimizers.Adam(),
                     metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(beta=count[0]/count[1]*frac)])
 
 tf.keras.utils.plot_model(model_1, "model.png")
 tf.keras.utils.model_to_dot(model_1).write("model.dot")
+print("model_1 has", sum(count_params(layer) for layer in model_1.trainable_weights), "parameters")
 
 # %%
 history_1 =  pd.DataFrame()
@@ -597,6 +603,15 @@ else:
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
+    plt.plot(history_1['loss'])
+    plt.plot(history_1['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+
+# %%
 
 # %%
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -604,10 +619,12 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 num2class_vec = np.vectorize(num2class.get)
 y_predict = model_1.predict(X_test)
 # Escoger la clase que tiene mayor probabilidad
-y_predict_sampled = y_predict.argmax(axis=1)
 if binary_classification:
     y_test_sampled = y_test
+    y_predict_sampled = (np.squeeze(y_predict) > 0.5).astype(int)
+
 else:
+    y_predict_sampled = y_predict.argmax(axis=1)
     y_test_sampled = y_test.argmax(axis=1)
 
 
