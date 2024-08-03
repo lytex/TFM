@@ -15,9 +15,13 @@
 
 # %%
 # %matplotlib -l
+import pandas as pd
+df_path = 'cumulative_2024.06.01_09.08.01.csv'
+df = pd.read_csv(df_path ,skiprows=144)
+pd.merge(df, df.groupby('kepid')['kepoi_name'].filter(lambda x: len(x)> 1), on='kepoi_name').query("koi_disposition != 'CANDIDATE'")
 
 # %%
-# %matplotlib qt
+# %matplotlib agg
 
 from IPython.display import display
 import warnings
@@ -40,11 +44,14 @@ from tqdm import tqdm
 from functools import partial
 import logging
 
-plt.ion()
+# plt.ion()
 # mpl.use("module://mplcairo.qt")
+mpl.use("agg")
 
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
+# Nos quedamos sólamente con los kepid que tienen más de un kepoi_name
+df = pd.merge(df, df.groupby('kepid')['kepoi_name'].filter(lambda x: len(x)> 1), on='kepoi_name')
 
 
 def process_light_curve(row, mission="Kepler", download_dir="data3/",
@@ -138,11 +145,11 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         # Ploteamos con los outliers
         fig, ax = plt.subplots(figsize=(12, 16))
         ax = lc_nonans.fold(period = row.koi_period,epoch_time = row.koi_time0bk).plot(ax=ax)
-        ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}'+title)
+        ax.set_title(f'KIC {row.kepid} {row.kepoi_name}: {row.koi_disposition}'+title)
         ax.axhline(min_, color='r')
         ax.axhline(max_, color='r')
         if plot_folder is not None:
-            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_00_plegado.png")
+            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_00_plegado.png")
             plt.close('all')
         else:
             plt.show()
@@ -164,9 +171,9 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         fig, (ax1, ax2) = plt.subplots(figsize=(12, 16), nrows=2, ncols=1)
         ax1 = lc_odd.plot(ax=ax1)
         ax2 = lc_even.plot(ax=ax2)
-        fig.suptitle(f'KIC {row.kepid}: {row.koi_disposition}'+title)
+        fig.suptitle(f'KIC {row.kepid} {row.kepoi_name}: {row.koi_disposition}'+title)
         if plot_folder is not None:
-            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_01_par_impar.png")
+            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_01_par_impar.png")
             plt.close('all')
         else:
             plt.show()
@@ -198,9 +205,9 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if plot:
         logger.info('graficando series bineadas...')
         fig, ((ax1, ax2), (ax3, ax4)) = lc_gl_collection.plot()
-        fig.suptitle(f'KIC {row.kepid}: {row.koi_disposition}'+title)
+        fig.suptitle(f'KIC {row.kepid} {row.kepoi_name}: {row.koi_disposition}'+title)
         if plot_folder is not None:
-            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_02_bineado.png")
+            plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_02_bineado.png")
             plt.close('all')
         else:
             plt.show()
@@ -257,12 +264,12 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         logger.info('graficando wavelets obtenidas...')
         if plot_folder is not None:
             # gi, gp, li, lp: global impar, global par, local impar, local par
-            figure_paths = (f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_gi.png",
-             f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_gp.png",
-             f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_li.png",
-             f"{plot_folder}/plot/kic_{row.kepid}_03_wavelet_lp.png",
+            figure_paths = (f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_03_wavelet_gi.png",
+             f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_03_wavelet_gp.png",
+             f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_03_wavelet_li.png",
+             f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_03_wavelet_lp.png",
              )
-            lc_wavelet_collection.plot(figure_paths=figure_paths, title=f'KIC {row.kepid}: {row.koi_disposition}' + title)
+            lc_wavelet_collection.plot(figure_paths=figure_paths, title=f'KIC {row.kepid} {row.kepoi_name}: {row.koi_disposition}' + title)
         else:
             lc_wavelet_collection.plot()
             plt.show()
@@ -276,10 +283,10 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     return lc_wavelet_collection
 
 if __name__ == "__main__":
-    path = "all_data_2024-07-17/"
+    path = "all_data_2024-08-03/"
     download_dir="data3/"
     process_func =  partial(process_light_curve, levels_global=6, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
-                            plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, df_path=df_path, plot_folder=None, use_download_cache=True)
+                            plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)
     
     def process_func_continue(row):
         try:
@@ -290,11 +297,11 @@ if __name__ == "__main__":
             return e
     
     
-    results = []
-    for _, row in tqdm(df.iterrows(), total=len(df)):
-        results.append(process_func(row))
+    # results = []
+    # for _, row in tqdm(df.iterrows(), total=len(df)):
+    #     results.append(process_func(row))
 
-    # n_proc = 20; results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc//10)
+    n_proc = 20; results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc//10)
     
     failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
     failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]
