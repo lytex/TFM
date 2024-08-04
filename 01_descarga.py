@@ -18,10 +18,11 @@
 import pandas as pd
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
-pd.merge(df, df.groupby('kepid')['kepoi_name'].filter(lambda x: len(x)> 1), on='kepoi_name').query("koi_disposition != 'CANDIDATE'")
+pd.merge(df, df.groupby('kepid')['kepoi_name'].filter(lambda x: len(x)> 1), on='kepoi_name').query("koi_disposition != 'CANDIDATE'").sort_values(by=['kepid', 'kepoi_name'])
 
 # %%
 # %matplotlib agg
+# %pdb on
 
 from IPython.display import display
 import warnings
@@ -51,7 +52,7 @@ mpl.use("agg")
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
 # Nos quedamos sólamente con los kepid que tienen más de un kepoi_name
-df = pd.merge(df, df.groupby('kepid')['kepoi_name'].filter(lambda x: len(x)> 1), on='kepoi_name')
+df = pd.merge(df, df.groupby('kepid')['kepoi_name'].filter(lambda x: len(x)> 1), on='kepoi_name').sort_values(by=["kepid", "kepoi_name"])
 
 
 def process_light_curve(row, mission="Kepler", download_dir="data3/",
@@ -123,14 +124,14 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     outlier_mask = res.mask
     lc_ro_1 = lc_nonans.copy()[~outlier_mask]
     lc_ro = lc_ro_1.flatten()
-    logger.info("Graficando serie completa")
-    mask_lc_ro = lc_ro.create_transit_mask(period=row.koi_period, duration=row.koi_duration/24.0, transit_time=row.koi_time0bk)
-    fig, ax = plt.subplots(figsize=(16, 12))
-    df_lc_ro = lc_ro.to_pandas().reset_index()[['time', 'flux']]
-    ax.scatter(df_lc_ro.time[~mask_lc_ro], df_lc_ro.flux[~mask_lc_ro], c='b', marker='.')
-    ax.scatter(df_lc_ro.time[mask_lc_ro], df_lc_ro.flux[mask_lc_ro], c='r', marker='*')
-    ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}'+title)
     if plot_folder is not None:
+        logger.info("Graficando serie completa")
+        mask_lc_ro = lc_ro.create_transit_mask(period=row.koi_period, duration=row.koi_duration/24.0, transit_time=row.koi_time0bk)
+        fig, ax = plt.subplots(figsize=(16, 12))
+        df_lc_ro = lc_ro.to_pandas().reset_index()[['time', 'flux']]
+        ax.scatter(df_lc_ro.time[~mask_lc_ro], df_lc_ro.flux[~mask_lc_ro], c='b', marker='.')
+        ax.scatter(df_lc_ro.time[mask_lc_ro], df_lc_ro.flux[mask_lc_ro], c='r', marker='*')
+        ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}'+title)
         plt.close('all')
     else:
         plt.show()

@@ -48,7 +48,6 @@ if use_wavelet:
     files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
 else:
     files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
-lightcurves = []
 
 # files = files[:100]
 
@@ -72,6 +71,7 @@ func = partial(load_files, path=path)
 
 lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
 
+# lightcurves = []
 # for file in tqdm(files):
 #     lightcurves.append(func(file))
 lightcurves = [lc for lc in lightcurves if lc is not None]
@@ -524,7 +524,7 @@ else:
     
     count =  pd.DataFrame({'col': y_entire}).reset_index(drop=False).groupby('col').index.count()
     print("count:",  count[0]/count[1]*frac)
-    from FBetaScore import DifferentiableFBetaScore
+    # from FBetaScore import DifferentiableFBetaScore
     k_fold = None
     model_1.compile(loss=WeightedBinaryCrossentropy(weights=[0.01, 0.1]), optimizer=tf.keras.optimizers.Adam(),
                     metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(beta=count[0]/count[1]*frac)])
