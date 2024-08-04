@@ -35,7 +35,7 @@ class LightCurveWaveletFoldCollection():
         # data = self._light_curve.flux.value
         # plt.figure(figsize=(16, 4))
         # plt.plot(time,data)
-        fig, axarr = plt.subplots(nrows=len(wavelet), ncols=1, figsize=(16,12))
+        fig, axarr = plt.subplots(nrows=len(wavelet), ncols=1, figsize=(16,12*len(wavelet)//5))
         for i,lc_w in enumerate(wavelet):
             data = lc_w
             axarr[i].plot(data, 'r')
@@ -141,13 +141,23 @@ class LightCurveGlobalLocalCollection():
             return w_loaded
 
     def plot(self, **kwargs):
-
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, figsize=(16,12))
         self.pliegue_impar_global.plot(**{"ax": ax1, "title": "global impar", **kwargs})
         self.pliegue_par_global.plot(**{"ax": ax2, "title": "global par",  **kwargs})
         self.pliegue_impar_local.plot(**{"ax": ax3, "title": "local impar", **kwargs})
         self.pliegue_par_local.plot(**{"ax": ax4, "title": "local par", **kwargs})
         return fig, ((ax1, ax2), (ax3, ax4))
+
+    
+    def plot_comparative(self, **kwargs):
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(32,12))
+        self.pliegue_impar_global.plot(**{"ax": ax1, "title": "global impar", "color": "r", **kwargs})
+        self.pliegue_par_global.plot(**{"ax": ax1, "title": "global par", "color": "b", **kwargs})
+        self.pliegue_impar_local.plot(**{"ax": ax2, "title": "local impar","color": "r", **kwargs})
+        self.pliegue_par_local.plot(**{"ax": ax2, "title": "local par","color": "b", **kwargs})
+        return fig, (ax1, ax2)
+        
+
         
     def scatter(self, **kwargs):
         self.pliegue_par_global.scatter(**kwargs)
@@ -213,6 +223,43 @@ class LightCurveWaveletGlobalLocalCollection():
             self.pliegue_par_global.plot()
             self.pliegue_impar_local.plot()
             self.pliegue_par_local.plot()
+
+    def plot_comparative(self, **kwargs):
+        title =  kwargs.get("title")
+
+        wavelet = self.pliegue_impar_global._lc_w_collection
+        fig, axarr = plt.subplots(nrows=len(wavelet), ncols=1, figsize=(32,12*len(wavelet)//5))
+        for i,lc_w in enumerate(wavelet):
+            axarr[i].plot(lc_w, 'r')
+            axarr[i].plot(self.pliegue_par_global._lc_w_collection[i], 'b')
+            axarr[i].set_ylabel("Level {}".format(i + 1), fontsize=14, rotation=90)
+            if i == 0:
+                axarr[i].set_title("Approximation coefficients", fontsize=14)
+            axarr[i].set_yticklabels([])
+        if kwargs.get("figure_paths") is not None:
+            figure_paths = kwargs.get("figure_paths")
+            plt.savefig(figure_paths[0])
+            plt.close('all')
+        if title:
+            fig.suptitle(title + " global")
+
+        wavelet = self.pliegue_impar_local._lc_w_collection
+        fig, axarr = plt.subplots(nrows=len(wavelet), ncols=1, figsize=(32,12*len(wavelet)//5))
+        for i,lc_w in enumerate(wavelet):
+            axarr[i].plot(lc_w, 'r')
+            axarr[i].plot(self.pliegue_par_local._lc_w_collection[i], 'b')
+            axarr[i].set_ylabel("Level {}".format(i + 1), fontsize=14, rotation=90)
+            if i == 0:
+                axarr[i].set_title("Approximation coefficients", fontsize=14)
+            axarr[i].set_yticklabels([])
+        if kwargs.get("figure_paths") is not None:
+            figure_paths = kwargs.get("figure_paths")
+            plt.savefig(figure_paths[1])
+            plt.close('all')
+        if title:
+            fig.suptitle(title + " local")
+        return fig, axarr
+        pass
         
     def scatter(self, **kwargs):
         self.pliegue_par_global.scatter(**kwargs)

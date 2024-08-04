@@ -204,7 +204,8 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 
     if plot:
         logger.info('graficando series bineadas...')
-        fig, ((ax1, ax2), (ax3, ax4)) = lc_gl_collection.plot()
+        # fig, ((ax1, ax2), (ax3, ax4)) = lc_gl_collection.plot()
+        fig, (ax1, ax2) = lc_gl_collection.plot_comparative()
         fig.suptitle(f'KIC {row.kepid} {row.kepoi_name}: {row.koi_disposition}'+title)
         if plot_folder is not None:
             plt.savefig(f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_02_bineado.png")
@@ -269,7 +270,10 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
              f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_03_wavelet_li.png",
              f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_03_wavelet_lp.png",
              )
-            lc_wavelet_collection.plot(figure_paths=figure_paths, title=f'KIC {row.kepid} {row.kepoi_name}: {row.koi_disposition}' + title)
+            figure_paths = (f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_03_wavelet_global.png",
+             f"{plot_folder}/plot/kic_{row.kepid}_{row.kepoi_name}_03_wavelet_local.png",
+             )
+            lc_wavelet_collection.plot_comparative(figure_paths=figure_paths, title=f'KIC {row.kepid} {row.kepoi_name}: {row.koi_disposition}' + title)
         else:
             lc_wavelet_collection.plot()
             plt.show()
@@ -283,7 +287,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     return lc_wavelet_collection
 
 if __name__ == "__main__":
-    path = "all_data_2024-08-03/"
+    path = "all_data_2024-08-04/"
     download_dir="data3/"
     process_func =  partial(process_light_curve, levels_global=6, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
                             plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)
