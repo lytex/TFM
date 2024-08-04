@@ -58,6 +58,8 @@ df = pd.merge(df, df.groupby('kepid')['kepoi_name'].filter(lambda x: len(x)> 1),
 def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         sigma=20, sigma_upper=4,
                         wavelet_window=None,
+                        num_bins_global=2001, bin_width_factor_global=1 / 2001,
+                        num_bins_local=201, bin_width_factor_local=0.16,
                         wavelet_family=None, levels_global=None, levels_local=None, cut_border_percent=0.1,
                         plot = False, plot_comparative=False,save=False, path="", plot_folder=None, use_download_cache=False, df_path=None, title="") -> LightCurveWaveletGlobalLocalCollection:
     """
@@ -186,8 +188,8 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_odd.sort("time")
     lc_even.sort("time")
     
-    lc_odd_global_flux =  global_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, normalize=False)
-    lc_even_global_flux =  global_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, normalize=False)
+    lc_odd_global_flux =  global_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, normalize=False, num_bins=num_bins_global, bin_width_factor=bin_width_factor_global)
+    lc_even_global_flux =  global_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, normalize=False, num_bins=num_bins_global, bin_width_factor=bin_width_factor_global)
     lc_odd_global = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_global_flux)), flux=lc_odd_global_flux)
     lc_even_global = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_global_flux)), flux=lc_even_global_flux)
 
@@ -197,8 +199,8 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     # Comrpobar unidades (está en horas la duración)
     # Mirar sistemas con múltiples planetas . Se ven varias curvas? No quitarlo de train porque se puede encontrar con esos casos, pero saber que sucede
     # Normalizar sólamente las wavelets
-    lc_odd_local_flux =  local_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=False)
-    lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=False)
+    lc_odd_local_flux =  local_view(lc_odd.time.to_value("jd"), lc_odd.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=False, num_bins=num_bins_local, bin_width_factor=bin_width_factor_local)
+    lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=False, num_bins=num_bins_local, bin_width_factor=bin_width_factor_local)
     lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux,)
     lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
     lc_gl_collection = LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local)

@@ -32,50 +32,6 @@ from sklearn.model_selection import train_test_split
 from functools import partial
 import datetime
 
-use_wavelet = False
-binary_classification = True
-k_fold = 5
-global_level_list = (1, 5,)
-local_level_list = (1, 3,)
-l1 = 0.00
-l2 = 0.0
-dropout = 0.0
-
-frac = 0.5 # fracción del porcentaje relativo de datos de cada clase que multiplica a la categorical_crossentropy, o fracción de beta
-
-path = "all_data_2024-07-17/"
-if use_wavelet:
-    files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
-else:
-    files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
-
-# files = files[:100]
-
-def load_files(file, path):
-    try:
-        global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
-    except Exception as e:
-        import traceback
-        print(f"Error con archivo {path}/{file}")
-        traceback.print_exc()
-        return None
-        # return e
-        
-    # try:
-    #     getattr(global_local, "levels")
-    # except AttributeError:
-    #     global_local.levels = [1, 2, 3, 4]
-    return global_local
-
-func = partial(load_files, path=path)
-
-lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
-
-# lightcurves = []
-# for file in tqdm(files):
-#     lightcurves.append(func(file))
-lightcurves = [lc for lc in lightcurves if lc is not None]
-
 
 # %%
 def inputs_from_dataset(lightcurves, global_level_list, local_level_list):
@@ -469,222 +425,267 @@ class GetBest(Callback):
 
 
 # %%
-# https://github.com/tensorflow/tensorflow/issues/48545
-import gc
-if globals().get("model_1"):
-    print("Erasing model_1")
-    del model_1
-    import gc
-    gc.collect()
-    tf.keras.backend.clear_session()
-# from numba import cuda 
-# device = cuda.get_current_device()
-# device.reset()
-
-log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-cp_callback = tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)
-best_callback = GetBest(monitor='val_loss', verbose=0, mode='min')
-# cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
-
-
-if use_wavelet:
-    lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["id"])
-    lightcurves_filtered = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
-else:
-    lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
-    lightcurves_filtered = [lc for lc in lightcurves if lc.headers["koi_disposition"] != "CANDIDATE"]
-
-inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
-    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1)
-
-if use_wavelet:
-    model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification, l1=l1, l2=l2, dropout=dropout)
-    
-else:
-    model_1 = gen_astronet(inputs, output_classes)
-
-if use_wavelet:
-    if binary_classification:
-        model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
+def load_files(file, path, use_wavelet=True):
+    if use_wavelet:
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
     else:
-        from weighted_loss import WeightedCategoricalCrossentropy
-        
-        # model_1.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-        #                 metrics=[F1_Score(),])
-
-        
-        count = pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
-        print("count:",  count[0]/count[1]*frac)
-        model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
-                        metrics=[F1_Score(),])
-
-else:
-    from weighted_loss import WeightedBinaryCrossentropy
-    
-    count =  pd.DataFrame({'col': y_entire}).reset_index(drop=False).groupby('col').index.count()
-    print("count:",  count[0]/count[1]*frac)
-    # from FBetaScore import DifferentiableFBetaScore
-    k_fold = None
-    model_1.compile(loss=WeightedBinaryCrossentropy(weights=[0.01, 0.1]), optimizer=tf.keras.optimizers.Adam(),
-                    metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(beta=count[0]/count[1]*frac)])
-
-tf.keras.utils.plot_model(model_1, "model.png")
-tf.keras.utils.model_to_dot(model_1).write("model.dot")
-print("model_1 has", sum(count_params(layer) for layer in model_1.trainable_weights), "parameters")
-
-# %%
-history_1 =  pd.DataFrame()
-
-if k_fold is None:
-    inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, \
-        output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
-    temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
-                            callbacks=[cp_callback, best_callback])
-    history_1 = history_1.append(pd.DataFrame(temp.history))
-
-else:
-    lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=0.2, shuffle=True)
-    _, _, X_test, _, y_test, _, kepid_test, _, num2class, \
-        _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0)
-    for ind in tqdm(range(k_fold)):
-        inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
-            output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet)
-        inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
-            output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
-        temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
-                                callbacks=[best_callback])
-        history_1 = history_1.append(pd.DataFrame(temp.history))
-
-history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
-
-# %%
-if not binary_classification:
-# summarize history_1 for loss
-    plt.plot(history_1['loss'])
-    plt.plot(history_1['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-    
-    
-    plt.plot(history_1['f1_score'])
-    plt.plot(history_1['val_f1_score'])
-    plt.title('model f1_score')
-    plt.ylabel('f1_score')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-    
-else:
-    # summarize history_1 for accuracy
-    plt.plot(history_1['accuracy'])
-    plt.plot(history_1['val_accuracy'])
-    plt.title('model accuracy')
-    plt.ylabel('accuracy')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-    # summarize history_1 for precision
-    plt.plot(history_1['precision'])
-    plt.plot(history_1['val_precision'])
-    plt.title('model precision')
-    plt.ylabel('precision')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-    # summarize history_1 for recall
-    plt.plot(history_1['recall'])
-    plt.plot(history_1['val_recall'])
-    plt.title('model recall')
-    plt.ylabel('recall')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-    plt.plot(history_1['loss'])
-    plt.plot(history_1['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-
-# %%
-
-# %%
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-
-num2class_vec = np.vectorize(num2class.get)
-y_predict = model_1.predict(X_test)
-# Escoger la clase que tiene mayor probabilidad
-if binary_classification:
-    y_test_sampled = y_test
-    y_predict_sampled = (np.squeeze(y_predict) > 0.5).astype(int)
-
-else:
-    y_predict_sampled = y_predict.argmax(axis=1)
-    y_test_sampled = y_test.argmax(axis=1)
-
-
-cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sampled), labels=[str(v) for v in num2class.values()])
-ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
-
-precision = cm[0][0]/(cm[0][0] + cm[1][0])
-recall = cm[0][0]/(cm[0][0] + cm[0][1])
-F1 = 2*(precision*recall)/(precision+recall)
-β = 1
-Fβ = (1+β**2)*(precision*recall)/(β**2*precision+recall)
-print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
-
-# %%
-0/0
-
-wrong = y_predict_sampled != y_test_sampled
-
-
-download_dir="data3/"
-import importlib  
-descarga = importlib.import_module("01_descarga")
-process_light_curve = descarga.process_light_curve
-
-process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
-                        plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True)
-
-def process_func_title(row):
-    title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}"
-    return process_func(row, title=title)
-
-def process_func_continue(row, title):
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
     try:
-        print(title)
-        return process_func(row, title)
+        global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
     except Exception as e:
-        print(f"Exception on {row.kepid}")
         import traceback
+        print(f"Error con archivo {path}/{file}")
         traceback.print_exc()
-        return e
+        return None
+        
+    return global_local
 
+if __name__ == "__main__":
+    use_wavelet = False
+    binary_classification = True
+    k_fold = 5
+    global_level_list = (1, 5,)
+    local_level_list = (1, 3,)
+    l1 = 0.00
+    l2 = 0.0
+    dropout = 0.0
+    
+    frac = 0.5 # fracción del porcentaje relativo de datos de cada clase que multiplica a la categorical_crossentropy, o fracción de beta
+    
+    path = "all_data_2024-07-17/"
+    
+    
+    func = partial(load_files, path=path, use_wavelet=use_wavelet)
+    
+    lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
+    
+    # lightcurves = []
+    # for file in tqdm(files):
+    #     lightcurves.append(func(file))
+    lightcurves = [lc for lc in lightcurves if lc is not None]
 
-df_path = 'cumulative_2024.06.01_09.08.01.csv'
-df = pd.read_csv(df_path ,skiprows=144)
-df_kepid = pd.DataFrame({"kepid": kepid_test[wrong], "predicted": y_predict_sampled[wrong], "true": y_test_sampled[wrong]})
-df_wrong = pd.merge(df_kepid, df, how="inner", on="kepid")
+# %%
+if __name__ == "__main__":
+    # https://github.com/tensorflow/tensorflow/issues/48545
+    import gc
+    if globals().get("model_1"):
+        print("Erasing model_1")
+        del model_1
+        import gc
+        gc.collect()
+        tf.keras.backend.clear_session()
+    # from numba import cuda 
+    # device = cuda.get_current_device()
+    # device.reset()
+    
+    log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    cp_callback = tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)
+    best_callback = GetBest(monitor='val_loss', verbose=0, mode='min')
+    # cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
+    
+    
+    if use_wavelet:
+        lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["id"])
+        lightcurves_filtered = [lc for lc in lightcurves if lc.headers["class"] != "CANDIDATE"]
+    else:
+        lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["kepid"])
+        lightcurves_filtered = [lc for lc in lightcurves if lc.headers["koi_disposition"] != "CANDIDATE"]
+    
+    inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
+        output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1)
+    
+    if use_wavelet:
+        model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification, l1=l1, l2=l2, dropout=dropout)
+        
+    else:
+        model_1 = gen_astronet(inputs, output_classes)
+    
+    if use_wavelet:
+        if binary_classification:
+            model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
+                            metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
+        else:
+            from weighted_loss import WeightedCategoricalCrossentropy
+            
+            # model_1.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
+            #                 metrics=[F1_Score(),])
+    
+            
+            count = pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
+            print("count:",  count[0]/count[1]*frac)
+            model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
+                            metrics=[F1_Score(),])
+    
+    else:
+        from weighted_loss import WeightedBinaryCrossentropy
+        
+        count =  pd.DataFrame({'col': y_entire}).reset_index(drop=False).groupby('col').index.count()
+        print("count:",  count[0]/count[1]*frac)
+        # from FBetaScore import DifferentiableFBetaScore
+        k_fold = None
+        model_1.compile(loss=WeightedBinaryCrossentropy(weights=[0.01, 0.1]), optimizer=tf.keras.optimizers.Adam(),
+                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(beta=count[0]/count[1]*frac)])
+    
+    tf.keras.utils.plot_model(model_1, "model.png")
+    tf.keras.utils.model_to_dot(model_1).write("model.dot")
+    print("model_1 has", sum(count_params(layer) for layer in model_1.trainable_weights), "parameters")
 
-# results = []
-# for _, row in tqdm(df_wrong.iterrows(), total=len(df_wrong)):
-#     try:
-#         results.append(process_light_curve(row, title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}",
-#                                            levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
-#                                            plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True))
-#     except Exception as e:
-#         print(f"Exception on {row.kepid}")
-#         import traceback
-#         traceback.print_exc()
-#         results.append(e)
-results = progress_map(process_func_title, [row for _, row in df_wrong.iterrows()], n_cpu=20, total=len(df_wrong), error_behavior='coerce')
+# %%
+if __name__ == "__main__":
+    history_1 =  pd.DataFrame()
+    
+    if k_fold is None:
+        inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, \
+            output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
+        temp = model_1.fit(X_train, y_train, epochs=200, batch_size=128, validation_data=(X_test, y_test),
+                                callbacks=[cp_callback, best_callback])
+        history_1 = history_1.append(pd.DataFrame(temp.history))
+    
+    else:
+        lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=0.2, shuffle=True)
+        _, _, X_test, _, y_test, _, kepid_test, _, num2class, \
+            _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0)
+        for ind in tqdm(range(k_fold)):
+            inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
+                output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet)
+            inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
+                output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
+            temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
+                                    callbacks=[best_callback])
+            history_1 = history_1.append(pd.DataFrame(temp.history))
+    
+    history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
+
+# %%
+if __name__ == "__main__":
+    if not binary_classification:
+    # summarize history_1 for loss
+        plt.plot(history_1['loss'])
+        plt.plot(history_1['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        
+        
+        plt.plot(history_1['f1_score'])
+        plt.plot(history_1['val_f1_score'])
+        plt.title('model f1_score')
+        plt.ylabel('f1_score')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        
+    else:
+        # summarize history_1 for accuracy
+        plt.plot(history_1['accuracy'])
+        plt.plot(history_1['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        # summarize history_1 for precision
+        plt.plot(history_1['precision'])
+        plt.plot(history_1['val_precision'])
+        plt.title('model precision')
+        plt.ylabel('precision')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        # summarize history_1 for recall
+        plt.plot(history_1['recall'])
+        plt.plot(history_1['val_recall'])
+        plt.title('model recall')
+        plt.ylabel('recall')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        plt.plot(history_1['loss'])
+        plt.plot(history_1['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+
+# %%
+
+# %%
+if __name__ == "__main__":
+    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+    
+    num2class_vec = np.vectorize(num2class.get)
+    y_predict = model_1.predict(X_test)
+    # Escoger la clase que tiene mayor probabilidad
+    if binary_classification:
+        y_test_sampled = y_test
+        y_predict_sampled = (np.squeeze(y_predict) > 0.5).astype(int)
+    
+    else:
+        y_predict_sampled = y_predict.argmax(axis=1)
+        y_test_sampled = y_test.argmax(axis=1)
+    
+    
+    cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sampled), labels=[str(v) for v in num2class.values()])
+    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
+    
+    precision = cm[0][0]/(cm[0][0] + cm[1][0])
+    recall = cm[0][0]/(cm[0][0] + cm[0][1])
+    F1 = 2*(precision*recall)/(precision+recall)
+    β = 1
+    Fβ = (1+β**2)*(precision*recall)/(β**2*precision+recall)
+    print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
+
+# %%
+if __name__ == "__main__":
+    0/0
+    wrong = y_predict_sampled != y_test_sampled
+    
+    
+    download_dir="data3/"
+    import importlib  
+    descarga = importlib.import_module("01_descarga")
+    process_light_curve = descarga.process_light_curve
+    
+    process_func =  partial(process_light_curve, levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
+                            plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True)
+    
+    def process_func_title(row):
+        title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}"
+        return process_func(row, title=title)
+    
+    def process_func_continue(row, title):
+        try:
+            print(title)
+            return process_func(row, title)
+        except Exception as e:
+            print(f"Exception on {row.kepid}")
+            import traceback
+            traceback.print_exc()
+            return e
+    
+    
+    df_path = 'cumulative_2024.06.01_09.08.01.csv'
+    df = pd.read_csv(df_path ,skiprows=144)
+    df_kepid = pd.DataFrame({"kepid": kepid_test[wrong], "predicted": y_predict_sampled[wrong], "true": y_test_sampled[wrong]})
+    df_wrong = pd.merge(df_kepid, df, how="inner", on="kepid")
+    
+    # results = []
+    # for _, row in tqdm(df_wrong.iterrows(), total=len(df_wrong)):
+    #     try:
+    #         results.append(process_light_curve(row, title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}",
+    #                                            levels_global=5, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
+    #                                            plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True))
+    #     except Exception as e:
+    #         print(f"Exception on {row.kepid}")
+    #         import traceback
+    #         traceback.print_exc()
+    #         results.append(e)
+    results = progress_map(process_func_title, [row for _, row in df_wrong.iterrows()], n_cpu=20, total=len(df_wrong), error_behavior='coerce')
 
 
 # %%
-len({x.kepler_id for x in lightcurves_val}), len({x.kepler_id for x in lightcurves_kfold}), len({x.kepler_id for x in lightcurves_val}.intersection({x.kepler_id for x in lightcurves_kfold}))
+if __name__ == "__main__":
+    len({x.kepler_id for x in lightcurves_val}), len({x.kepler_id for x in lightcurves_kfold}), len({x.kepler_id for x in lightcurves_val}.intersection({x.kepler_id for x in lightcurves_kfold}))
