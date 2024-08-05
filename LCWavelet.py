@@ -315,7 +315,7 @@ def apply_wavelet(light_curve,w_family, levels,cut_border_percent=0.1, normalize
         lc_wavelet.append(pywt.wavedec(data, w_family, mode='periodic', level=level,)[0])
     if normalize:
         lc_wavelet = [x - np.median(x) for x in lc_wavelet]
-        lc_wavelet = [x / np.abs(np.min(x)) for x in lc_wavelet]
+        lc_wavelet = [x / np.abs(np.min(x)+1e-6) for x in lc_wavelet]
     return LightCurveWaveletFoldCollection(light_curve,lc_wavelet)
 
 def load_light_curve(kepler_id,mission='Kepler'):

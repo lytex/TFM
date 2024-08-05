@@ -44,13 +44,13 @@ load_files = entrenamiento.load_files
 
 sigma = 20
 sigma_upper = 5
-levels_global = 5
-levels_local = 3
-wavelet_family = "sym5"
 num_bins_global = 2001
 bin_width_factor_global = 1 / 2001
 num_bins_local = 201
 bin_width_factor_local = 0.16
+levels_global = 6
+levels_local = 3
+wavelet_family = "sym5"
 path = "all_data_2024-07-17/"
 use_download_cache = True
 
@@ -75,7 +75,7 @@ def process_func_continue(row):
 
 
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
-df = pd.read_csv(df_path ,skiprows=144)[:50]
+df = pd.read_csv(df_path ,skiprows=144)[:100]
 
 if not parallel:
     results = []
@@ -84,9 +84,11 @@ if not parallel:
 else:
     results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc)
 
-lightcurves = [x for x in results if Exception not in x.__bases__]
+# %%
+lightcurves = [x for x in results if type(x) in (LightCurveWaveletGlobalLocalCollection, )]
 
-use_wavelet = False
+# %%
+use_wavelet = True
 binary_classification = True
 k_fold = 5
 global_level_list = (1, 5,)
@@ -96,18 +98,6 @@ l2 = 0.0
 dropout = 0.0
 
 frac = 0.5 # fracción del porcentaje relativo de datos de cada clase que multiplica a la categorical_crossentropy, o fracción de beta
-
-
-
-func = partial(load_files, path=path, use_wavelet=use_wavelet)
-
-if parallel:
-    lightcurves = progress_map(func, files, n_cpu=n_proc_load, total=len(files), executor='processes', error_behavior='raise')
-
-else:
-    lightcurves = []
-    for file in tqdm(files):
-        lightcurves.append(func(file))
 
 lightcurves = [lc for lc in lightcurves if lc is not None]
 
@@ -123,6 +113,12 @@ if globals().get("model_1"):
 # device = cuda.get_current_device()
 # device.reset()
 
+GetBest = entrenamiento.GetBest
+get_data_split = entrenamiento.get_data_split
+gen_model_2_levels = entrenamiento.gen_model_2_levels
+gen_astronet = entrenamiento.gen_astronet
+from weighted_loss import WeightedBinaryCrossentropy,  WeightedCategoricalCrossentropy
+
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 cp_callback = tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)
 best_callback = GetBest(monitor='val_loss', verbose=0, mode='min')
@@ -137,7 +133,8 @@ else:
     lightcurves_filtered = [lc for lc in lightcurves if lc.headers["koi_disposition"] != "CANDIDATE"]
 
 inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
-    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1)
+    output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1,
+                                   global_level_list=global_level_list, local_level_list=local_level_list)
 
 if use_wavelet:
     model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification, l1=l1, l2=l2, dropout=dropout)
@@ -159,7 +156,7 @@ if use_wavelet:
         count = pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
         print("count:",  count[0]/count[1]*frac)
         model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
-                        metrics=[F1_Score(),])
+                        metrics=[entrenamiento.F1_Score(),])
 
 else:
     from weighted_loss import WeightedBinaryCrossentropy
@@ -176,11 +173,12 @@ tf.keras.utils.model_to_dot(model_1).write("model.dot")
 print("model_1 has", sum(count_params(layer) for layer in model_1.trainable_weights), "parameters")
 
 # %%
+# %pdb on
 history_1 =  pd.DataFrame()
 
 if k_fold is None:
     inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, \
-        output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
+        output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, global_level_list=global_level_list, local_level_list=local_level_list)
     temp = model_1.fit(X_train, y_train, epochs=200, batch_size=128, validation_data=(X_test, y_test),
                             callbacks=[cp_callback, best_callback])
     history_1 = history_1.append(pd.DataFrame(temp.history))
@@ -188,12 +186,15 @@ if k_fold is None:
 else:
     lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=0.2, shuffle=True)
     _, _, X_test, _, y_test, _, kepid_test, _, num2class, \
-        _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0)
+        _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0,
+                           global_level_list=global_level_list, local_level_list=local_level_list)
     for ind in tqdm(range(k_fold)):
         inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
-            output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet)
+            output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet,
+                                            global_level_list=global_level_list, local_level_list=local_level_list)
         inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
-            output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
+            output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind,
+                                            global_level_list=global_level_list, local_level_list=local_level_list)
         temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
                                 callbacks=[best_callback])
         history_1 = history_1.append(pd.DataFrame(temp.history))

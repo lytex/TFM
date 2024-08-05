@@ -34,7 +34,7 @@ import datetime
 
 
 # %%
-def inputs_from_dataset(lightcurves, global_level_list, local_level_list):
+def inputs_from_dataset(lightcurves, global_level_list, local_level_list, use_wavelet=True):
     if use_wavelet:
         pliegue_par_global = defaultdict(list)
         pliegue_impar_global = defaultdict(list)
@@ -90,7 +90,7 @@ def flatten_from_inputs(inputs, use_wavelet=True):
     return flatten
 
 
-def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k_fold=None, ind=None, test_size=0.3):
+def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k_fold=None, ind=None, test_size=0.3, global_level_list=None, local_level_list=None):
 
     if use_wavelet:
         lightcurves = sorted(lightcurves, key=lambda lc: lc.headers["Kepler_name"])
@@ -153,10 +153,10 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
         kepid_train = np.array([lc.headers["kepid"] for lc in lightcurves_train])
 
 
-    inputs = inputs_from_dataset(lightcurves_train, global_level_list=global_level_list, local_level_list=local_level_list)
-    X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train, global_level_list=global_level_list, local_level_list=local_level_list),
+    inputs = inputs_from_dataset(lightcurves_train, global_level_list=global_level_list, local_level_list=local_level_list, use_wavelet=use_wavelet)
+    X_train = flatten_from_inputs(inputs_from_dataset(lightcurves_train, global_level_list=global_level_list, local_level_list=local_level_list, use_wavelet=use_wavelet),
                                   use_wavelet=use_wavelet)
-    X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test, global_level_list=global_level_list, local_level_list=local_level_list),
+    X_test = flatten_from_inputs(inputs_from_dataset(lightcurves_test, global_level_list=global_level_list, local_level_list=local_level_list, use_wavelet=use_wavelet),
                                  use_wavelet=use_wavelet)
 
     if not use_wavelet:
