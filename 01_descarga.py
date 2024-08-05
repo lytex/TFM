@@ -61,7 +61,8 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         num_bins_global=2001, bin_width_factor_global=1 / 2001,
                         num_bins_local=201, bin_width_factor_local=0.16,
                         wavelet_family=None, levels_global=None, levels_local=None, cut_border_percent=0.1,
-                        plot = False, plot_comparative=False,save=False, path="", plot_folder=None, use_download_cache=False, df_path=None, title="") -> LightCurveWaveletGlobalLocalCollection:
+                        plot = False, plot_comparative=False,save=False, path="", plot_folder=None, use_download_cache=False, df_path=None, title="",
+                        cache_dict=None) -> LightCurveWaveletGlobalLocalCollection:
     """
 
     Args:
@@ -84,6 +85,9 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 
     """
 
+    if cache_dict is None:
+        cache_dict = dict()
+
 
     FORMAT = '%(asctime)s [%(levelname)s] :%(name)s:%(message)s'
     logger = logging.getLogger(f"process_light_curve[{os.getpid()}]")
@@ -102,23 +106,33 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     # 1. Bajarse los datos con lightkurve o cargarlos si ya están bajados
     kic = f'KIC {row.kepid}'
     file_name = download_dir+kic+".pickle"
-    if use_download_cache:
-        logger.info(f"Cargando datos de caché para {mission} {row.kepid}...");
-        with open(file_name, "rb") as f:
-            lc_search = pickle.load(f)
+    if "lc_search" in cache_dict.keys():
+        lc_search = cache_dict['lc_search']
     else:
-        logger.info(f"Bajando datos para {mission} {row.kepid}...");
-        lc_search = lk.search_lightcurve(kic, mission=mission)
-        with open(file_name, "wb") as f:
-            pickle.dump(lc_search, f)
-            
-    logger.info(f"Abriendo o descargando curvas de luz en la ruta {download_dir}...");
-    light_curve_collection = lc_search.download_all(download_dir=download_dir)
+        if use_download_cache:
+            logger.info(f"Cargando datos de caché para {mission} {row.kepid}...");
+            with open(file_name, "rb") as f:
+                lc_search = pickle.load(f)
+        else:
+            logger.info(f"Bajando datos para {mission} {row.kepid}...");
+            lc_search = lk.search_lightcurve(kic, mission=mission)
+            with open(file_name, "wb") as f:
+                pickle.dump(lc_search, f)
 
-    # 2. Generar la colección, juntarlos todos y quitarles Nan
-    logger.info("Juntando colección de curvas...")
-    lc_collection = lk.LightCurveCollection([lc for lc in light_curve_collection])
-    lc_collection = lc_collection.stitch()
+    if "light_curve_collection" in cache_dict.keys():
+        light_curve_collection = cache_dict["light_curve_collection"]
+    else:
+        logger.info(f"Abriendo o descargando curvas de luz en la ruta {download_dir}...");
+        light_curve_collection = lc_search.download_all(download_dir=download_dir)
+
+    if "lc_collection" in cache_dict.keys():
+        lc_collection = cache_dict["lc_collection"]
+    else:
+        # 2. Generar la colección, juntarlos todos y quitarles Nan
+        logger.info("Juntando colección de curvas...")
+        lc_collection = lk.LightCurveCollection([lc for lc in light_curve_collection])
+        lc_collection = lc_collection.stitch()
+
     logger.info(f"Eliminando outliers sigma={sigma}, sigma_upper={sigma_upper}...")
     lc_nonans = lc_collection.remove_nans()
     from astropy.stats.sigma_clipping import sigma_clip
