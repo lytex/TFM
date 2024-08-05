@@ -225,7 +225,7 @@ def train_model(model_1, lightcurves, use_wavelet=True, binary_classification=Fa
 #                                                    use_wavelet=use_wavelet, binary_classification=binary_classification,
 #                                                    k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size)
     
-def get_metrics(num2class, X_test, y_test, model_1, β=1):
+def get_metrics(num2class, X_test, y_test, model_1, β=1, plot=False):
     num2class_vec = np.vectorize(num2class.get)
     y_predict = model_1.predict(X_test)
     # Escoger la clase que tiene mayor probabilidad
@@ -246,7 +246,7 @@ def get_metrics(num2class, X_test, y_test, model_1, β=1):
     recall = cm[0][0]/(cm[0][0] + cm[0][1])
     F1 = 2*(precision*recall)/(precision+recall)
     Fβ = (1+β**2)*(precision*recall)/(β**2*precision+recall)
-    return precision, recall, F1, Fβ, cm
+    return precision, recall, F1, Fβ, cm, num2class
 
 # precision, recall, F1, Fβ, cm = get_metrics(num2class, X_test, y_test, model_1, β=2.0)
 # print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
@@ -311,10 +311,12 @@ def main(sigma = 20, sigma_upper = 5,
                                                        k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size)
 
     
-    precision, recall, F1, Fβ, cm = get_metrics(num2class, X_test, y_test, model_1, β=β)
-    return precision, recall, F1, Fβ, cm
+    precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β)
+    return precision, recall, F1, Fβ, cm, num2class
     
 if __name__ == "__main__":
+
+    # %matplotlib inline
     sigma = 20
     sigma_upper = 5
     num_bins_global = 2001
@@ -351,7 +353,7 @@ if __name__ == "__main__":
     parallel = True
 
     
-    precision, recall, F1, Fβ, cm = main(sigma=sigma, sigma_upper=sigma_upper,
+    precision, recall, F1, Fβ, cm, num2class = main(sigma=sigma, sigma_upper=sigma_upper,
                 num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
                 num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local,
                 levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
@@ -370,4 +372,5 @@ if __name__ == "__main__":
                 lightcurve_cache=lightcurve_cache,
         )
 
+    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
     print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
