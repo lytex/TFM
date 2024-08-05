@@ -184,7 +184,7 @@ if globals().get("model_1"):
 
 # %%
 # %pdb on
-def train_model(lightcurves, use_wavelet=True, binary_classification=False, k_fold=None, global_level_list=None, local_level_list=None, epochs=200, batch_size=128):
+def train_model(model_1, lightcurves, use_wavelet=True, binary_classification=False, k_fold=None, global_level_list=None, local_level_list=None, epochs=200, batch_size=128):
     
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     cp_callback = tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)
@@ -306,7 +306,7 @@ def main(sigma = 20, sigma_upper = 5,
     
     model_1, weights = get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac)
     
-    history_1, num2class, X_test, y_test = train_model(lightcurves,
+    history_1, num2class, X_test, y_test = train_model(model_1, lightcurves,
                                                        use_wavelet=use_wavelet, binary_classification=binary_classification,
                                                        k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size)
 
