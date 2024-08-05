@@ -184,7 +184,7 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
 # inputs
 # %pdb off
 from math import ceil
-def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binary_classification=False, l1=0.0, l2=0.0, dropout=0.0):
+def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binary_classification=False, l1=0.0, l2=0.0, dropout=0.0, global_view=2001, local_view=201):
     
     (pliegue_par_global, pliegue_impar_global), (pliegue_par_local, pliegue_impar_local) = inputs    
 
@@ -199,7 +199,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
  
     for n, data in pliegue_par_global.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]*5.0/2001 + 1)
+        layer_depth = ceil(data.shape[1]*5.0/global_view + 1)
         print(f"par global: {layer_depth}")
         for i in range(layer_depth):
             if i == 0:
@@ -213,7 +213,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
         
     for n, data in pliegue_impar_global.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]*5.0/2001 + 1)
+        layer_depth = ceil(data.shape[1]*5.0/global_view + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -226,7 +226,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
 
     for n, data in pliegue_par_local.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]*2.0/201 + 1)
+        layer_depth = ceil(data.shape[1]*2.0/local_view + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -239,7 +239,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
         
     for n, data in pliegue_impar_local.items():
         block = Sequential()
-        layer_depth = ceil(data.shape[1]*2.0/201 + 1)
+        layer_depth = ceil(data.shape[1]*2.0/local_view + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
@@ -425,11 +425,7 @@ class GetBest(Callback):
 
 
 # %%
-def load_files(file, path, use_wavelet=True):
-    if use_wavelet:
-        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
-    else:
-        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
+def load_files(file, path):
     try:
         global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
     except Exception as e:
@@ -441,8 +437,8 @@ def load_files(file, path, use_wavelet=True):
     return global_local
 
 if __name__ == "__main__":
-    use_wavelet = False
-    binary_classification = True
+    use_wavelet = True
+    binary_classification = False
     k_fold = 5
     global_level_list = (1, 5,)
     local_level_list = (1, 3,)
@@ -453,9 +449,15 @@ if __name__ == "__main__":
     frac = 0.5 # fracción del porcentaje relativo de datos de cada clase que multiplica a la categorical_crossentropy, o fracción de beta
     
     path = "all_data_2024-07-17/"
+    if use_wavelet:
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
+    else:
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
     
     
-    func = partial(load_files, path=path, use_wavelet=use_wavelet)
+    
+    
+    func = partial(load_files, path=path)
     
     lightcurves = progress_map(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise')
     
@@ -492,7 +494,8 @@ if __name__ == "__main__":
         lightcurves_filtered = [lc for lc in lightcurves if lc.headers["koi_disposition"] != "CANDIDATE"]
     
     inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
-        output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1)
+        output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=len(lightcurves_filtered)-1,
+                                        global_level_list=global_level_list, local_level_list=local_level_list)
     
     if use_wavelet:
         model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification, l1=l1, l2=l2, dropout=dropout)
@@ -547,9 +550,11 @@ if __name__ == "__main__":
             _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0)
         for ind in tqdm(range(k_fold)):
             inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
-                output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet)
+                output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet,
+                                               global_level_list=global_level_list, local_level_list=local_level_list)
             inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
-                output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind)
+                output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind,
+                                               global_level_list=global_level_list, local_level_list=local_level_list)
             temp = model_1.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test),
                                     callbacks=[best_callback])
             history_1 = history_1.append(pd.DataFrame(temp.history))
@@ -609,8 +614,6 @@ if __name__ == "__main__":
         plt.xlabel('epoch')
         plt.legend(['train', 'test'], loc='upper left')
         plt.show()
-
-# %%
 
 # %%
 if __name__ == "__main__":
