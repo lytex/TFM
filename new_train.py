@@ -137,7 +137,7 @@ inputs, _, X_entire, _, y_entire, y_class, _, kepid_train, num2class, \
                                    global_level_list=global_level_list, local_level_list=local_level_list)
 
 if use_wavelet:
-    model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification, l1=l1, l2=l2, dropout=dropout)
+    model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification, l1=l1, l2=l2, dropout=dropout, global_view=num_bins_global, local_view=num_bins_local)
     
 else:
     model_1 = gen_astronet(inputs, output_classes)
