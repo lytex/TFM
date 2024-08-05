@@ -534,12 +534,14 @@ if __name__ == "__main__":
     print("model_1 has", sum(count_params(layer) for layer in model_1.trainable_weights), "parameters")
 
 # %%
+# %pdb on
 if __name__ == "__main__":
     history_1 =  pd.DataFrame()
     
     if k_fold is None:
         inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, \
-            output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet)
+            output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet,
+                                           global_level_list=global_level_list, local_level_list=local_level_list)
         temp = model_1.fit(X_train, y_train, epochs=200, batch_size=128, validation_data=(X_test, y_test),
                                 callbacks=[cp_callback, best_callback])
         history_1 = history_1.append(pd.DataFrame(temp.history))
@@ -547,7 +549,8 @@ if __name__ == "__main__":
     else:
         lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=0.2, shuffle=True)
         _, _, X_test, _, y_test, _, kepid_test, _, num2class, \
-            _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0)
+            _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0,
+                              global_level_list=global_level_list, local_level_list=local_level_list)
         for ind in tqdm(range(k_fold)):
             inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
                 output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet,
