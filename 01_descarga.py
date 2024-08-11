@@ -147,7 +147,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         df_lc_ro = lc_ro.to_pandas().reset_index()[['time', 'flux']]
         ax.scatter(df_lc_ro.time[~mask_lc_ro], df_lc_ro.flux[~mask_lc_ro], c='b', marker='.')
         ax.scatter(df_lc_ro.time[mask_lc_ro], df_lc_ro.flux[mask_lc_ro], c='r', marker='*')
-        ax.set_title(f'KIC {row.kepid}: {row.koi_disposition}'+title)
+        ax.set_title(f'KIC {row.kepid} {row.kepoi_name}: {row.koi_disposition}'+title)
         plt.close('all')
     else:
         plt.show()
@@ -173,7 +173,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
             plt.pause(.001)
 
     if save:
-        LightCurveShallueCollection(row.kepid, row,
+        LightCurveShallueCollection(row.kepoi_name, row,
                                     global_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, normalize=True),
                                     local_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=True)
                                    ).save(path)
@@ -217,7 +217,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     lc_even_local_flux =  local_view(lc_even.time.to_value("jd"), lc_even.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=False, num_bins=num_bins_local, bin_width_factor=bin_width_factor_local)
     lc_odd_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_odd_local_flux)), flux=lc_odd_local_flux,)
     lc_even_local = lk.lightcurve.FoldedLightCurve(time=np.arange(len(lc_even_local_flux)), flux=lc_even_local_flux)
-    lc_gl_collection = LightCurveGlobalLocalCollection(row.kepid, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local)
+    lc_gl_collection = LightCurveGlobalLocalCollection(row.kepoi_name, row, lc_odd_global, lc_even_global, lc_even_local, lc_odd_local)
 
     if plot:
         logger.info('graficando series bineadas...')
@@ -271,7 +271,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
         "df_path": df_path,
         "Kepler_name":row.kepoi_name
     }
-    lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepid, headers,
+    lc_wavelet_collection = LightCurveWaveletGlobalLocalCollection(row.kepoi_name, headers,
                                                                    lc_w_even_global,
                                                                    lc_w_odd_global,
                                                                    lc_w_even_local,
