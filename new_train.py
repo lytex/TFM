@@ -124,7 +124,8 @@ def descarga_process_light_curve(
 # lightcurves = [lc for lc in lightcurves if lc is not None]
 
 # %%
-def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False, frac=0.5, model_name="model"):
+def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False, frac=0.5, model_name="model", test_size=0.3, global_level_list=None, local_level_list=None, l1=0.0, l2=0.0, dropout=0.0,
+                     num_bins_global=None, num_bins_local=None):
     
     if use_wavelet:
         lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["id"])
@@ -184,7 +185,7 @@ if globals().get("model_1"):
 
 # %%
 # %pdb on
-def train_model(model_1, lightcurves, use_wavelet=True, binary_classification=False, k_fold=None, global_level_list=None, local_level_list=None, epochs=200, batch_size=128):
+def train_model(model_1, lightcurves, use_wavelet=True, binary_classification=False, k_fold=None, global_level_list=None, local_level_list=None, epochs=200, batch_size=128, test_size=0.3):
     
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     cp_callback = tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)
@@ -194,25 +195,26 @@ def train_model(model_1, lightcurves, use_wavelet=True, binary_classification=Fa
     history_1 =  pd.DataFrame()
     if k_fold is None:
         inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, \
-            output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, global_level_list=global_level_list, local_level_list=local_level_list)
+            output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, global_level_list=global_level_list, local_level_list=local_level_list, test_size=test_size)
         temp = model_1.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_test, y_test),
                                 callbacks=[cp_callback, best_callback])
         history_1 = history_1.append(pd.DataFrame(temp.history))
     
     else:
-        lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=0.2, shuffle=True)
+        lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=test_size, shuffle=True)
         _, _, X_test, _, y_test, _, kepid_test, _, num2class, \
-            _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0,
+            _ = get_data_split(lightcurves_val, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0,
                                global_level_list=global_level_list, local_level_list=local_level_list)
         for ind in tqdm(range(k_fold)):
             inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
                 output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet,
-                                                global_level_list=global_level_list, local_level_list=local_level_list)
+                                                global_level_list=global_level_list, local_level_list=local_level_list, test_size=test_size)
             inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
                 output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind,
-                                                global_level_list=global_level_list, local_level_list=local_level_list)
+                                                global_level_list=global_level_list, local_level_list=local_level_list, test_size=test_size)
             temp = model_1.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_test, y_test),
                                     callbacks=[best_callback])
+            temp.history.update({"k_ind": ind, "k_fold": k_fold})
             history_1 = history_1.append(pd.DataFrame(temp.history))
     
     history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
@@ -225,7 +227,7 @@ def train_model(model_1, lightcurves, use_wavelet=True, binary_classification=Fa
 #                                                    use_wavelet=use_wavelet, binary_classification=binary_classification,
 #                                                    k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size)
     
-def get_metrics(num2class, X_test, y_test, model_1, β=1, plot=False):
+def get_metrics(num2class, X_test, y_test, model_1, β=1, binary_classification=False, plot=False):
     num2class_vec = np.vectorize(num2class.get)
     y_predict = model_1.predict(X_test)
     # Escoger la clase que tiene mayor probabilidad
@@ -270,7 +272,7 @@ def main(sigma = 20, sigma_upper = 5,
             k_fold = 5,
             global_level_list = (1, 5,), local_level_list = (1, 3,),
             l1 = 0.00, l2 = 0.0, dropout = 0.0,
-            epochs = 200, batch_size = 128,
+            epochs = 200, batch_size = 128, test_size=0.3,
             frac = 0.5, β=1.0,
             download_dir="data3/",
             path = "all_data_2024-07-17/",
@@ -279,40 +281,50 @@ def main(sigma = 20, sigma_upper = 5,
             n_proc = 20,
             parallel = True,
             lightcurve_cache=True,
+            return_lightcurves=False,
+            lightcurves=None,
     ):
-    
-    if lightcurve_cache:
-        if use_wavelet:
-            files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
-        else:
-            files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
-            
-        func = partial(load_files, path=path)
-        
-        lightcurves = progress_imap(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//64//10)
-    else:
-        results = descarga_process_light_curve(
-            df_path=df_path,
-            sigma=sigma, sigma_upper=sigma_upper,
-            num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
-            num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local,
-            plot=False, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=None, use_download_cache=use_download_cache,
-            parallel=True
-        )
-        lightcurves = [x for x in results if type(x) in (LightCurveWaveletGlobalLocalCollection, )]
 
+    if lightcurves is None:
+        if lightcurve_cache:
+            if use_wavelet:
+                files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
+            else:
+                files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
+                
+            func = partial(load_files, path=path)
+            
+            lightcurves = progress_imap(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//64//10)
+        else:
+            results = descarga_process_light_curve(
+                df_path=df_path,
+                sigma=sigma, sigma_upper=sigma_upper,
+                num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
+                num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local,
+                plot=False, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=None, use_download_cache=use_download_cache,
+                parallel=True
+            )
+            lightcurves = [x for x in results if type(x) in (LightCurveWaveletGlobalLocalCollection, )]
     
-    lightcurves = [lc for lc in lightcurves if lc is not None]
+        
+        lightcurves = [lc for lc in lightcurves if lc is not None]
     
-    model_1, weights = get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac)
+    model_1, weights = get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac,  test_size=test_size,
+                                         global_level_list=global_level_list, local_level_list=local_level_list,
+                                        l1=l1, l2=l2, dropout=dropout,
+                                        num_bins_global=num_bins_global,
+                                        num_bins_local=num_bins_local)
     
     history_1, num2class, X_test, y_test = train_model(model_1, lightcurves,
                                                        use_wavelet=use_wavelet, binary_classification=binary_classification,
-                                                       k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size)
+                                                       k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
 
     
-    precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β)
-    return precision, recall, F1, Fβ, cm, num2class
+    precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
+    if return_lightcurves:
+        return precision, recall, F1, Fβ, cm, num2class, lightcurves
+    else:
+        return precision, recall, F1, Fβ, cm, num2class
     
 if __name__ == "__main__":
 
@@ -374,3 +386,5 @@ if __name__ == "__main__":
 
     ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
     print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
+
+# %%
