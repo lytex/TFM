@@ -174,3 +174,4 @@ data*
 *.dot
 .workdir/
 logs
+raw_freq

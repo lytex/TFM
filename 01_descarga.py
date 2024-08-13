@@ -309,24 +309,29 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
 
 if __name__ == "__main__":
     path = "all_data_2024-08-04/"
-    download_dir="data3/"
+    download_dir="data4/"
     process_func =  partial(process_light_curve, levels_global=6, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
-                            plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=True)
+                            plot=True, plot_comparative=False, save=True, path=path, download_dir=download_dir, df_path=df_path, plot_folder=path, use_download_cache=False)
     
-    def process_func_continue(row):
+    def process_func_continue(row, retry=True):
         try:
             return process_func(row)
         except Exception as e:
             print(f"Exception on {row.kepid}")
             traceback.print_exc()
+            path = str(e).replace('Not recognized as a supported data product:\n', '') \
+            .replace('\nThis file may be corrupt due to an interrupted download. Please remove it from your disk and try again.', '')
+            if path != str(e) and retry:
+                os.remove(path)
+                process_func_continue(row, retry=False)
             return e
     
     
-    # results = []
-    # for _, row in tqdm(df.iterrows(), total=len(df)):
-    #     results.append(process_func(row))
+    results = []
+    for _, row in tqdm(df.iterrows(), total=len(df)):
+        results.append(process_func_continue(row))
 
-    n_proc = 20; results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc//10)
+    # n_proc = 20; results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc//10)
     
     failures_idx = [n for n, x in enumerate(results) if type(x) != LightCurveWaveletGlobalLocalCollection]
     failures = [x for x in results if type(x) != LightCurveWaveletGlobalLocalCollection]

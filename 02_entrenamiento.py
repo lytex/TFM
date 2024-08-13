@@ -547,8 +547,9 @@ if __name__ == "__main__":
     
     else:
         lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=0.2, shuffle=True)
+        lightcurves_kfold, lightcurves_val
         _, _, X_test, _, y_test, _, kepid_test, _, num2class, \
-            _ = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0,
+            _ = get_data_split(lightcurves_val, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0,
                               global_level_list=global_level_list, local_level_list=local_level_list)
         for ind in tqdm(range(k_fold)):
             inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \

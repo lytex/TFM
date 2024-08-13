@@ -29,9 +29,11 @@ import pickle
 
 df_path = 'cumulative_2024.06.01_09.08.01.csv'
 df = pd.read_csv(df_path ,skiprows=144)
+failure = pd.read_csv('all_data_2024-07-17/failure_1721424039.csv')
+df = pd.merge(failure[['kepoi_name']], df, on="kepoi_name")
 
 
-def process_light_curve(row, mission="Kepler", download_dir="data2/",
+def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         binning_parameters=None,
                         sigma=20, sigma_upper=4,
                         wavelet_window=None,
@@ -127,6 +129,7 @@ import traceback
 def download_one(kic):
     try:
         lc_search = lk.search_lightcurve(kic, mission="Kepler")
+        light_curve_collection = lc_search.download_all(download_dir="data3/")
         file_name = "data3/"+kic+".pickle"
         with open(file_name, "wb") as f:
             pickle.dump(lc_search, f)
@@ -146,7 +149,9 @@ from concurrent import futures
 from parallelbar import progress_map
 # with flushing(), futures.ThreadPoolExecutor(max_workers=32) as executor:
 #     res = executor.map(download_one, kep_id)
-progress_map(download_one, kep_id, n_cpu=16, error_behavior='coerce')
+for kepid in kep_id:
+    download_one(kepid)
+# progress_map(download_one, kep_id, n_cpu=16, error_behavior='coerce')
 
 # pd.concat([lc.table.to_pandas() for lc in lc_search]).to_csv("table.csv", index=None)
 # lc_search[0].table.to_pandas()

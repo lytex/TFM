@@ -87,6 +87,11 @@ def descarga_process_light_curve(
     
     return results
 
+# %% [raw]
+# [np.sum(x) for x in hist]
+
+# %%
+
 # %%
 # %pdb on
 # results = descarga_process_light_curve(
