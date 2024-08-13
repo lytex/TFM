@@ -17,6 +17,7 @@
 from new_train import main, load_files_wrapper
 import pandas as pd
 import gc
+import os
 import tensorflow as tf
 import optuna
 import multiprocessing
@@ -30,7 +31,11 @@ base_path = "./all_data_2024-07-17/"
 os.makedirs(base_path, exist_ok=True)
 artifact_store = FileSystemArtifactStore(base_path=base_path)
 
-lightcurves = load_files_wrapper(use_wavelet=True)
+path = "all_data_2024-07-17/"
+file_path = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+os.makedirs(path+file_path, exist_ok=True)
+
+lightcurves = load_files_wrapper(path=path, use_wavelet=True)
 
 def objective(trial):
     global lightcurves
@@ -51,7 +56,7 @@ def objective(trial):
     k_fold = None
     global_level_list = (1, 5,)
     local_level_list = (1, 3,)
-    epochs = 5
+    epochs = 1
     batch_size = 128
     l1 = 0.00
     l2 = 0.0
@@ -93,17 +98,41 @@ def objective(trial):
 
     gc.collect()
     tf.keras.backend.clear_session()
-    
-    result_df = pd.DataFrame([{"precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ,
-                  "cm_00": cm[0][0], "cm_01": cm[0][1], "cm_10": cm[1][0], "cm_11": cm[1][1], "0": num2class[0], "1": num2class[1]}])
-    import sys; sys.__breakpointhook__()
 
-    file_path =  datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    upload_artifact(trial, file_path, artifact_store)
+    variables = ["sigma", "sigma_upper",
+                "num_bins_global", "bin_width_factor_global",
+                "num_bins_local", "bin_width_factor_local", "num_durations",
+                "levels_global", "levels_local", "wavelet_family",
+                "use_wavelet", "binary_classification",
+                "k_fold",
+                "global_level_list", "local_level_list",
+                "l1", "l2","dropout",
+                "epochs", "batch_size",
+                "frac", "β",
+                "download_dir",
+                "path",
+                "df_path",
+                "use_download_cache",
+                "n_proc",
+                "parallel",
+                "lightcurve_cache",
+                ]
+    local_dict = locals()
+    variables_dict = {variable: local_dict.get(variable, trial.params.get(variable)) for variable in variables}
+    variables_dict.update({ "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ,
+                  "cm_00": cm[0][0], "cm_01": cm[0][1], "cm_10": cm[1][0], "cm_11": cm[1][1], "0": num2class[0], "1": num2class[1]})
+    result_df = pd.DataFrame([variables_dict])
+
+    now = datetime.datetime.now().strftime("%s")
+    # upload_artifact(trial, path+file_path+"/"+now, artifact_store)
+    result_df.to_csv(path+file_path+"/"+now+".csv", index=False)
+
     return F1
 
-
-study = optuna.create_study(direction="maximize")
+storage = optuna.storages.JournalStorage(
+   optuna.storages.JournalFileStorage("./journal.log"),
+)
+study = optuna.create_study(direction="maximize", storage=storage)
 study.optimize(objective, n_trials=10)
 
 trial = study.best_trial

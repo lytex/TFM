@@ -279,7 +279,7 @@ def load_files(file, path):
         
     return global_local
 
-def load_files_wrapper(use_wavelet=True):
+def load_files_wrapper(path, use_wavelet=True):
     import multiprocessing
     if use_wavelet:
         files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
@@ -315,7 +315,7 @@ def main(sigma = 20, sigma_upper = 5,
     
     if lightcurves is None:
         if lightcurve_cache:
-            lightcurves = load_files_wrapper(use_wavelet=use_wavelet)
+            lightcurves = load_files_wrapper(path=path, use_wavelet=use_wavelet)
         else:
             results = descarga_process_light_curve(
                 df_path=df_path,
