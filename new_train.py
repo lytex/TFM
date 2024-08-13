@@ -53,7 +53,7 @@ def descarga_process_light_curve(
     df_path=None,
     sigma=None, sigma_upper=None,
     num_bins_global=None, bin_width_factor_global=None,
-    num_bins_local=None, bin_width_factor_local=None,
+    num_bins_local=None, bin_width_factor_local=None, num_durations=None,
     plot=False, plot_comparative=False, save=False, path=None, download_dir=None, plot_folder=None, use_download_cache=True,
     parallel=None
 ):
@@ -62,7 +62,7 @@ def descarga_process_light_curve(
     process_func =  partial(process_light_curve,
                             sigma=sigma, sigma_upper=sigma_upper,
                             num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
-                            num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local,
+                            num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
                             levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
                             plot=False, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=None, use_download_cache=use_download_cache, cache_dict=dict())
 
@@ -170,8 +170,9 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
     
     tf.keras.utils.plot_model(model_1, f"{model_name}.png")
     tf.keras.utils.model_to_dot(model_1).write(f"{model_name}.dot")
-    print("model_1 has", sum(count_params(layer) for layer in model_1.trainable_weights), "parameters")
-    return model_1, sum(count_params(layer) for layer in model_1.trainable_weights)
+    # parameters = sum(count_params(layer) for layer in model_1.trainable_weights
+    # print("model_1 has", parameters, "parameters")
+    return model_1
 
 if globals().get("model_1"):
     print("Erasing model_1")
@@ -185,25 +186,38 @@ if globals().get("model_1"):
 
 # %%
 # %pdb on
-def train_model(model_1, lightcurves, use_wavelet=True, binary_classification=False, k_fold=None, global_level_list=None, local_level_list=None, epochs=200, batch_size=128, test_size=0.3):
-    
+def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classification=False, k_fold=None,
+                global_level_list=None, local_level_list=None, epochs=200, batch_size=128, test_size=0.3,
+               save_callback=False, best_callback=True):
+
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    cp_callback = tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)
-    best_callback = GetBest(monitor='val_loss', verbose=0, mode='min')
     
     # cp_callback = tf.keras.callbacks.BackupAndRestore(log_dir)
     history_1 =  pd.DataFrame()
+
+    model_1 = model_1_lazy()
+
+    callbacks = []
+    if save_callback:
+        callbacks += [tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)]
+    if best_callback:
+        callbacks += [GetBest(monitor='val_loss', verbose=0, mode='min')]
+    
     if k_fold is None:
+        lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=test_size, shuffle=True)
         inputs, X_train, X_test, y_train, y_test, y, kepid_test, kepid_train, num2class, \
             output_classes = get_data_split(lightcurves, binary_classification=binary_classification, use_wavelet=use_wavelet, global_level_list=global_level_list, local_level_list=local_level_list, test_size=test_size)
-        temp = model_1.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_test, y_test),
-                                callbacks=[cp_callback, best_callback])
+        _, X_val, X_test, y_val, y_test, _, kepid_test, kepid_val, num2class, \
+            _ = get_data_split(lightcurves_val, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=0.5,
+                               global_level_list=global_level_list, local_level_list=local_level_list)
+        temp = model_1.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_val, y_val),
+                                callbacks=callbacks)
         history_1 = history_1.append(pd.DataFrame(temp.history))
     
     else:
         lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=test_size, shuffle=True)
-        _, _, X_test, _, y_test, _, kepid_test, _, num2class, \
-            _ = get_data_split(lightcurves_val, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0,
+        _, X_val, X_test, y_val, y_test, _, kepid_test, kepid_val, num2class, \
+            _ = get_data_split(lightcurves_val, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=0.5,
                                global_level_list=global_level_list, local_level_list=local_level_list)
         for ind in tqdm(range(k_fold)):
             inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
@@ -212,14 +226,15 @@ def train_model(model_1, lightcurves, use_wavelet=True, binary_classification=Fa
             inputs, X_train, X_test_kfold, y_train, y_test_kfold, y, kepid_test_kfold, kepid_train, num2class, \
                 output_classes = get_data_split(lightcurves_kfold, binary_classification=binary_classification, use_wavelet=use_wavelet, k_fold=k_fold, ind=ind,
                                                 global_level_list=global_level_list, local_level_list=local_level_list, test_size=test_size)
-            temp = model_1.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_test, y_test),
-                                    callbacks=[best_callback])
+            temp = model_1.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_val, y_val),
+                                    callbacks=callbacks)
+            
             temp.history.update({"k_ind": ind, "k_fold": k_fold})
             history_1 = history_1.append(pd.DataFrame(temp.history))
     
     history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
     
-    return history_1, num2class, X_test, y_test
+    return model_1, history_1, num2class, X_test, y_test
 
 
 # %%
@@ -264,9 +279,21 @@ def load_files(file, path):
         
     return global_local
 
+def load_files_wrapper(use_wavelet=True):
+    import multiprocessing
+    if use_wavelet:
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
+    else:
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
+        
+    func = partial(load_files, path=path)
+            
+    lightcurves = progress_imap(func, files, n_cpu=multiprocessing.cpu_count()*4, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//multiprocessing.cpu_count()//4//10)
+    return lightcurves
+
 def main(sigma = 20, sigma_upper = 5,
             num_bins_global = 2001, bin_width_factor_global = 1 / 2001,
-            num_bins_local = 201, bin_width_factor_local = 0.16,
+            num_bins_local = 201, bin_width_factor_local = 0.16, num_durations=4,
             levels_global = 6, levels_local = 3, wavelet_family = "sym5",
             use_wavelet = True, binary_classification = True,
             k_fold = 5,
@@ -285,46 +312,40 @@ def main(sigma = 20, sigma_upper = 5,
             lightcurves=None,
     ):
 
+    
     if lightcurves is None:
         if lightcurve_cache:
-            if use_wavelet:
-                files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
-            else:
-                files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
-                
-            func = partial(load_files, path=path)
-            
-            lightcurves = progress_imap(func, files, n_cpu=64, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//64//10)
+            lightcurves = load_files_wrapper(use_wavelet=use_wavelet)
         else:
             results = descarga_process_light_curve(
                 df_path=df_path,
                 sigma=sigma, sigma_upper=sigma_upper,
                 num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
-                num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local,
+                num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
                 plot=False, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=None, use_download_cache=use_download_cache,
-                parallel=True
+                parallel=parallel
             )
             lightcurves = [x for x in results if type(x) in (LightCurveWaveletGlobalLocalCollection, )]
     
         
         lightcurves = [lc for lc in lightcurves if lc is not None]
     
-    model_1, weights = get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac,  test_size=test_size,
+    model_1_lazy = lambda : get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac,  test_size=test_size,
                                          global_level_list=global_level_list, local_level_list=local_level_list,
                                         l1=l1, l2=l2, dropout=dropout,
                                         num_bins_global=num_bins_global,
                                         num_bins_local=num_bins_local)
     
-    history_1, num2class, X_test, y_test = train_model(model_1, lightcurves,
+    model_1, history_1, num2class, X_test, y_test = train_model(model_1_lazy, lightcurves,
                                                        use_wavelet=use_wavelet, binary_classification=binary_classification,
                                                        k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
 
     
     precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
     if return_lightcurves:
-        return precision, recall, F1, Fβ, cm, num2class, lightcurves
+        return precision, recall, F1, Fβ, cm, num2class, history_1, lightcurves
     else:
-        return precision, recall, F1, Fβ, cm, num2class
+        return precision, recall, F1, Fβ, cm, num2class, history_1
     
 if __name__ == "__main__":
 
@@ -335,6 +356,7 @@ if __name__ == "__main__":
     bin_width_factor_global = 1 / 2001
     num_bins_local = 201
     bin_width_factor_local = 0.16
+    num_durations = 4
     levels_global = 6
     levels_local = 3
     wavelet_family = "sym5"
@@ -367,7 +389,7 @@ if __name__ == "__main__":
     
     precision, recall, F1, Fβ, cm, num2class = main(sigma=sigma, sigma_upper=sigma_upper,
                 num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
-                num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local,
+                num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
                 levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
                 use_wavelet=use_wavelet, binary_classification=binary_classification,
                 k_fold=k_fold,

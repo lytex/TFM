@@ -200,7 +200,6 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
     for n, data in pliegue_par_global.items():
         block = Sequential()
         layer_depth = ceil(data.shape[1]*5.0/global_view + 1)
-        print(f"par global: {layer_depth}")
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], ))
