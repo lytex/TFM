@@ -1,15 +1,23 @@
+FROM nvidia/cuda:11.2.2-devel-ubuntu20.04
+RUN ln -s /usr/share/zoneinfo/UTC /etc/localtime
+RUN --mount=type=cache,target=/var/cache/apt apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common wget \
+    && add-apt-repository ppa:deadsnakes/ppa
+RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install -y python3.7
+COPY --from=python:3.7-slim /usr/local/lib/python3.7/distutils /usr/lib/python3.7/distutils
+RUN wget https://bootstrap.pypa.io/pip/3.7/get-pip.py 
+RUN python3.7 get-pip.py --target /usr/local/lib/python3.7/dist-packages
+RUN useradd --create-home appuser
 
-FROM python:3.7.17-slim-bullseye
-RUN sed -i "s/bullseye main/bullseye main contrib non-free/" /etc/apt/sources.list
-RUN apt-get update && apt-get install -y nvidia-cuda-toolkit nvidia-cuda-dev 
+USER appuser
+WORKDIR /home/appuser/code
+RUN mkdir -p /home/appuser/code
+COPY requirements.txt /home/appuser/code
+RUN --mount=type=cache,target=/home/appuser/.cache/pip python3.7 -m pip install --user -r requirements.txt
+# --target /usr/local/lib/python3.7/dist-packages
+ENV PATH="${PATH}:/home/appuser/.local/bin"
+COPY *.csv /home/appuser/code
+COPY *.py /home/appuser/code
 
-RUN mkdir -p /code
-WORKDIR /code
-
-COPY requirements.txt /code
-RUN pip install -r requirements.txt
-COPY *.csv /code
-COPY *.py /code
-
-ENTRYPOINT ["python", "optuna_trial.py"]
+ENTRYPOINT ["python3.7", "optuna_trial.py"]
 
