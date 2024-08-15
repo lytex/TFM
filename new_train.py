@@ -173,8 +173,8 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
         model_1.compile(loss=WeightedBinaryCrossentropy(weights=[0.01, 0.1]), optimizer=tf.keras.optimizers.Adam(),
                         metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(beta=count[0]/count[1]*frac)])
     
-    tf.keras.utils.plot_model(model_1, f"{model_name}.png")
-    tf.keras.utils.model_to_dot(model_1).write(f"{model_name}.dot")
+    # tf.keras.utils.plot_model(model_1, f"{model_name}.png")
+    # tf.keras.utils.model_to_dot(model_1).write(f"{model_name}.dot")
     # parameters = sum(count_params(layer) for layer in model_1.trainable_weights
     # print("model_1 has", parameters, "parameters")
     return model_1
