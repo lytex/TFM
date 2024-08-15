@@ -10,8 +10,8 @@ RUN python3.7 get-pip.py --target /usr/local/lib/python3.7/dist-packages
 RUN useradd --create-home appuser
 
 USER appuser
-WORKDIR /home/appuser/code
 RUN mkdir -p /home/appuser/code
+WORKDIR /home/appuser/code
 COPY requirements.txt /home/appuser/code
 RUN --mount=type=cache,target=/home/appuser/.cache/pip python3.7 -m pip install --user -r requirements.txt
 # --target /usr/local/lib/python3.7/dist-packages
