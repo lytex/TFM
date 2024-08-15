@@ -1,3 +1,4 @@
+print("optuna_trial.py, new code")
 # ---
 # jupyter:
 #   jupytext:
