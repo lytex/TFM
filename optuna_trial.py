@@ -34,6 +34,7 @@ artifact_store = FileSystemArtifactStore(base_path=base_path)
 path = "all_data_2024-07-17/"
 file_path = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 os.makedirs(path+file_path, exist_ok=True)
+print("trial folder created:", path+file_path)
 
 lightcurves = load_files_wrapper(path=path, use_wavelet=True)
 
