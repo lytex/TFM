@@ -16,6 +16,7 @@ RUN mkdir -p /home/ovh/code
 WORKDIR /home/ovh/code
 COPY *.csv /home/ovh/code
 COPY *.py /home/ovh/code
+COPY entryopint.sh /home/ovh/code
 
-ENTRYPOINT ["python3.7", "optuna_trial.py"]
+ENTRYPOINT ["/bin/bash", "/home/ovh/code/entrypoint.sh"]
 
