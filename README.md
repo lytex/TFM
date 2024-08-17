@@ -22,3 +22,4 @@ Crea un archivo `failure*{fecha actual}.csv`con las curvas que han fallado y la 
 Tarda ~10h en secuencial y ~3h en paralelo (con 16 procesadores y procesos)
 
 LCWavelet.py contiene clases de apoyo para guardar y plotear curvas de luz de distintos tipos
+
