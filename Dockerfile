@@ -8,14 +8,12 @@ COPY --from=python:3.7-slim /usr/local/lib/python3.7/distutils /usr/lib/python3.
 RUN wget https://bootstrap.pypa.io/pip/3.7/get-pip.py 
 RUN python3.7 get-pip.py --target /usr/local/lib/python3.7/dist-packages
 RUN useradd --create-home appuser
+COPY requirements.txt requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip python3.7 -m pip install -r requirements.txt --target /usr/local/lib/python3.7/dist-packages
 
 USER appuser
 RUN mkdir -p /home/appuser/code
 WORKDIR /home/appuser/code
-COPY requirements.txt /home/appuser/code
-RUN --mount=type=cache,target=/home/appuser/.cache/pip python3.7 -m pip install --user -r requirements.txt
-# --target /usr/local/lib/python3.7/dist-packages
-ENV PATH="${PATH}:/home/appuser/.local/bin"
 COPY *.csv /home/appuser/code
 COPY *.py /home/appuser/code
 
