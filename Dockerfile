@@ -7,15 +7,13 @@ RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install -
 COPY --from=python:3.7-slim /usr/local/lib/python3.7/distutils /usr/lib/python3.7/distutils
 RUN wget https://bootstrap.pypa.io/pip/3.7/get-pip.py 
 RUN python3.7 get-pip.py --target /usr/local/lib/python3.7/dist-packages
-RUN useradd --create-home appuser
 COPY requirements.txt requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip python3.7 -m pip install -r requirements.txt --target /usr/local/lib/python3.7/dist-packages
 
-USER appuser
-RUN mkdir -p /home/appuser/code
-WORKDIR /home/appuser/code
-COPY *.csv /home/appuser/code
-COPY *.py /home/appuser/code
+RUN mkdir -p /code
+WORKDIR /code
+COPY *.csv /code
+COPY *.py /code
 
 ENTRYPOINT ["python3.7", "optuna_trial.py"]
 
