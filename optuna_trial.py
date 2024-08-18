@@ -58,18 +58,19 @@ def objective(trial):
     k_fold = None
     global_level_list = (1, 5,)
     local_level_list = (1, 3,)
-    epochs = 1
+    epochs = 100
     batch_size = 128
-    l1 = 0.00
-    l2 = 0.0
-    dropout = 0.0
+    l1 = trial.suggest_float("l1", 0.0, 0.99)
+    l2 = trial.suggest_float("l2", 0.0, 0.99)
+    dropout = trial.suggest_float("dropout", 0.0, 0.99)
+    
     β = 2.0
-    frac =  trial.suggest_float("frac", 0.1, 0.9)
+    frac =  trial.suggest_float("frac", 0.1, 1.9)
     
     
     
     download_dir="data3/data3/"
-    path = "all_data_2024-07-17/all_data_2024-07-17/"
+    path = "all_data_2024-07-17/output/"
     df_path = 'cumulative_2024.06.01_09.08.01.csv'
     use_download_cache = True
     lightcurve_cache = True
@@ -128,6 +129,8 @@ def objective(trial):
     now = datetime.datetime.now().strftime("%s")
     # upload_artifact(trial, path+file_path+"/"+now, artifact_store)
     result_df.to_csv(path+file_path+"/"+now+".csv", index=False)
+    print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
+    print(cm)
 
     return F1
 
