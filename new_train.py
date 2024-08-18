@@ -41,6 +41,7 @@ descarga = importlib.import_module("01_descarga")
 entrenamiento = importlib.import_module("02_entrenamiento")
 
 GetBest = entrenamiento.GetBest
+FilterModel = entrenamiento.FilterModel
 get_data_split = entrenamiento.get_data_split
 gen_model_2_levels = entrenamiento.gen_model_2_levels
 gen_astronet = entrenamiento.gen_astronet
@@ -210,6 +211,8 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
         callbacks += [tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)]
     if best_callback:
         callbacks += [GetBest(monitor='val_loss', verbose=0, mode='min')]
+    callbacks += [FilterModel(epochs=epochs, batch_size=batch_size)]
+
     
     if k_fold is None:
         lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=test_size, shuffle=True)

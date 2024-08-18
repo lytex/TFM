@@ -422,6 +422,32 @@ class GetBest(Callback):
                                                        self.best))
         self.model.set_weights(self.best_weights)
 
+# %%
+class FilterModel(Callback):
+    def __init__(self, epochs=None, batch_size=None):
+        super(FilterModel, self).__init__()
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.counter = {"loss": 0, "recall": 0, "precision": 0}
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        loss = logs.get('loss')
+        recall = logs.get('recall')
+        precision = logs.get('precision')
+
+
+        if recall < 0.01:
+            self.counter["recall"] += 1
+        if precision < 0.01:
+            self.counter["precision"] += 1
+        if loss > 100:
+            self.counter["loss"] += 1
+
+        if self.counter["recall"] > 5 or self.counter["precision"] > 5 or self.counter["loss"] > 10:
+            self.model.stop_training = True
+
+
 
 # %%
 def load_files(file, path):
