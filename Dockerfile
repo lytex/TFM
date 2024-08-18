@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.2.2-devel-ubuntu20.04
+FROM nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04
 RUN ln -s /usr/share/zoneinfo/UTC /etc/localtime
 RUN --mount=type=cache,target=/var/cache/apt apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y tree software-properties-common wget graphviz && \
