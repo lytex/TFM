@@ -335,7 +335,7 @@ def main(sigma = 20, sigma_upper = 5,
             lightcurves = [x for x in results if type(x) in (LightCurveWaveletGlobalLocalCollection, )]
     
         
-        lightcurves = [lc for lc in lightcurves if lc is not None]
+    lightcurves = [lc for lc in lightcurves if lc is not None]
     
     model_1_lazy = lambda : get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac,  test_size=test_size,
                                          global_level_list=global_level_list, local_level_list=local_level_list,
