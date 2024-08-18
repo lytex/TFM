@@ -128,7 +128,7 @@ def objective(trial):
     variables_dict.update({
         "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ,
         "precision_val": precision_val, "recall_val": recall_val, "F1_val": F1_val, "Fβ_val": Fβ_val,
-                  "cm_val_00": cm[0][0], "cm_val_01": cm[0][1], "cm_val_10": cm[1][0], "cm_val_11": cm[1][1], "0": num2class[0], "1": num2class[1]
+                  "cm_val_00": cm[0][0], "cm_val_01": cm[0][1], "cm_val_10": cm[1][0], "cm_val_11": cm[1][1],
                   "cm_00": cm[0][0], "cm_01": cm[0][1], "cm_10": cm[1][0], "cm_11": cm[1][1], "0": num2class[0], "1": num2class[1]})
     result_df = pd.DataFrame([variables_dict])
 
