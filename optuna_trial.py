@@ -63,9 +63,9 @@ def objective(trial):
     local_level_list = (1, 3,)
     epochs = 100
     batch_size = 128
-    l1 = trial.suggest_float("l1", 0.0, 0.99)
-    l2 = trial.suggest_float("l2", 0.0, 0.99)
-    dropout = trial.suggest_float("dropout", 0.0, 0.99)
+    l1 = trial.suggest_float("l1", 0.0, 0.1)
+    l2 = trial.suggest_float("l2", 0.0, 0.1)
+    dropout = trial.suggest_float("dropout", 0.0, 0.3)
     
     β = 2.0
     frac =  trial.suggest_float("frac", 0.1, 1.9)
@@ -149,7 +149,7 @@ study_name = "example-study"  # Unique identifier of the study.
 storage = "sqlite:///{}.db".format(study_name)
 
 study = optuna.create_study(direction="maximize", storage=storage)
-study.optimize(objective, n_trials=10)
+study.optimize(objective, n_trials=100)
 
 trial = study.best_trial
 
