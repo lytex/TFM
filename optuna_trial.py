@@ -32,7 +32,7 @@ base_path = "./all_data_2024-07-17/"
 os.makedirs(base_path, exist_ok=True)
 artifact_store = FileSystemArtifactStore(base_path=base_path)
 
-path = "all_data_2024-07-17/"
+path = "all_data_2024-07-17/all_data_2024-07-17"
 file_path = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 os.makedirs(path+file_path, exist_ok=True)
 print("trial folder created:", path+file_path)
