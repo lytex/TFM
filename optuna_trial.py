@@ -70,7 +70,7 @@ def objective(trial):
     
     
     download_dir="data3/data3/"
-    path = "all_data_2024-07-17/output/"
+    path = "all_data_2024-07-17/all_data_2024-07-17/"
     df_path = 'cumulative_2024.06.01_09.08.01.csv'
     use_download_cache = True
     lightcurve_cache = True
