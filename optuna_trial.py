@@ -23,6 +23,9 @@ import tensorflow as tf
 import optuna
 import multiprocessing
 import datetime
+import logging
+import sys
+from shutil import copyfile
 
 from optuna.artifacts import FileSystemArtifactStore
 from optuna.artifacts import upload_artifact
@@ -134,9 +137,17 @@ def objective(trial):
 
     return F1
 
-storage = optuna.storages.JournalStorage(
-   optuna.storages.JournalFileStorage("./journal.log"),
-)
+
+# Add stream handler of stdout to show the messages
+optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
+study_name = "example-study"  # Unique identifier of the study.
+
+# storage = optuna.storages.JournalStorage(
+#    optuna.storages.JournalFileStorage("./journal.log"),
+# )
+
+storage = "sqlite:///{}.db".format(study_name)
+
 study = optuna.create_study(direction="maximize", storage=storage)
 study.optimize(objective, n_trials=10)
 
@@ -144,3 +155,5 @@ trial = study.best_trial
 
 print("Accuracy: {}".format(trial.value))
 print("Best hyperparameters: {}".format(trial.params))
+
+copyfile(f"{study_name}.db", f"{path+file_path}/{study_name}.db")
