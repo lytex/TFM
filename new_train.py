@@ -55,6 +55,7 @@ def descarga_process_light_curve(
     num_bins_global=None, bin_width_factor_global=None,
     num_bins_local=None, bin_width_factor_local=None, num_durations=None,
     plot=False, plot_comparative=False, save=False, path=None, download_dir=None, plot_folder=None, use_download_cache=True,
+    levels_global=None, levels_local=None, wavelet_family=None,
     parallel=None
 ):
                         
@@ -327,6 +328,7 @@ def main(sigma = 20, sigma_upper = 5,
                 sigma=sigma, sigma_upper=sigma_upper,
                 num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
                 num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
+                levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
                 plot=False, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=None, use_download_cache=use_download_cache,
                 parallel=parallel
             )
