@@ -245,7 +245,7 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
     
     history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
     
-    return model_1, history_1, num2class, X_test, y_test
+    return model_1, history_1, num2class, X_val, y_val, X_test, y_test
 
 
 # %%
@@ -253,7 +253,7 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
 #                                                    use_wavelet=use_wavelet, binary_classification=binary_classification,
 #                                                    k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size)
     
-def get_metrics(num2class, X_test, y_test, model_1, β=1, binary_classification=False, plot=False):
+def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classification=False, plot=False):
     num2class_vec = np.vectorize(num2class.get)
     y_predict = model_1.predict(X_test)
     # Escoger la clase que tiene mayor probabilidad
@@ -348,16 +348,17 @@ def main(sigma = 20, sigma_upper = 5,
                                         num_bins_global=num_bins_global,
                                         num_bins_local=num_bins_local)
     
-    model_1, history_1, num2class, X_test, y_test = train_model(model_1_lazy, lightcurves,
+    model_1, history_1, num2class, X_val, y_val, X_test, y_test = train_model(model_1_lazy, lightcurves,
                                                        use_wavelet=use_wavelet, binary_classification=binary_classification,
                                                        k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
 
     
     precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
+    precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
     if return_lightcurves:
-        return precision, recall, F1, Fβ, cm, num2class, history_1, lightcurves
+        return precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1, lightcurves
     else:
-        return precision, recall, F1, Fβ, cm, num2class, history_1
+        return precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1
     
 if __name__ == "__main__":
 
@@ -399,7 +400,7 @@ if __name__ == "__main__":
     parallel = True
 
     
-    precision, recall, F1, Fβ, cm, num2class = main(sigma=sigma, sigma_upper=sigma_upper,
+    precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1 = main(sigma=sigma, sigma_upper=sigma_upper,
                 num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
                 num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
                 levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,

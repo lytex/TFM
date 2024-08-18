@@ -82,7 +82,7 @@ def objective(trial):
     parallel = True
 
     
-    precision, recall, F1, Fβ, cm, num2class, history_1 = main(sigma=sigma, sigma_upper=sigma_upper,
+    precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1 = main(sigma=sigma, sigma_upper=sigma_upper,
                 num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
                 num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
                 levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
@@ -125,7 +125,10 @@ def objective(trial):
                 ]
     local_dict = locals()
     variables_dict = {variable: local_dict.get(variable, trial.params.get(variable)) for variable in variables}
-    variables_dict.update({ "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ,
+    variables_dict.update({
+        "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ,
+        "precision_val": precision_val, "recall_val": recall_val, "F1_val": F1_val, "Fβ_val": Fβ_val,
+                  "cm_val_00": cm[0][0], "cm_val_01": cm[0][1], "cm_val_10": cm[1][0], "cm_val_11": cm[1][1], "0": num2class[0], "1": num2class[1]
                   "cm_00": cm[0][0], "cm_01": cm[0][1], "cm_10": cm[1][0], "cm_11": cm[1][1], "0": num2class[0], "1": num2class[1]})
     result_df = pd.DataFrame([variables_dict])
 
@@ -135,7 +138,7 @@ def objective(trial):
     print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
     print(cm)
 
-    return F1
+    return F1_val
 
 
 # Add stream handler of stdout to show the messages
