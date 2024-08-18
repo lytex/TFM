@@ -132,6 +132,8 @@ def descarga_process_light_curve(
 # %%
 def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False, frac=0.5, model_name="model", test_size=0.3, global_level_list=None, local_level_list=None, l1=0.0, l2=0.0, dropout=0.0,
                      num_bins_global=None, num_bins_local=None):
+
+    lightcurves = [lc for lc in lightcurves if lc is not None]
     
     if use_wavelet:
         lightcurves_filtered = sorted(lightcurves, key=lambda lc: lc.headers["id"])
