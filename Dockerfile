@@ -1,7 +1,7 @@
 FROM nvidia/cuda:11.2.2-devel-ubuntu20.04
 RUN ln -s /usr/share/zoneinfo/UTC /etc/localtime
 RUN --mount=type=cache,target=/var/cache/apt apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common wget graphviz && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y tree software-properties-common wget graphviz && \
     add-apt-repository ppa:deadsnakes/ppa
 RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install -y python3.7
 COPY --from=python:3.7-slim /usr/local/lib/python3.7/distutils /usr/lib/python3.7/distutils
