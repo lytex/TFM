@@ -86,7 +86,7 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     k_fold = None
     # global_level_list = (1, 5,)
     # local_level_list = (1, 3,)
-    epochs = 1
+    epochs = 100
     batch_size = 128
     l1 = trial.suggest_float("l1", 0.0, 0.1)
     l2 = trial.suggest_float("l2", 0.0, 0.1)
