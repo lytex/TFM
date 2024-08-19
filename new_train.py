@@ -294,13 +294,13 @@ def load_files(file, path):
 def load_files_wrapper(path, use_wavelet=True):
     import multiprocessing
     if use_wavelet:
-        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file][:260]
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
     else:
-        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file][:260]
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
         
     func = partial(load_files, path=path)
             
-    lightcurves = progress_imap(func, files, n_cpu=multiprocessing.cpu_count()*4, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//multiprocessing.cpu_count())
+    lightcurves = progress_imap(func, files, n_cpu=multiprocessing.cpu_count()*4, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//multiprocessing.cpu_count()//4//10)
     return lightcurves
 
 def main(sigma = 20, sigma_upper = 5,
