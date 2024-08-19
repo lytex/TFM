@@ -205,4 +205,8 @@ import subprocess
 process = subprocess.Popen(f"cd {path+file_path}; head -n +1 $(for file in *.csv; do echo $file; done | head -n 1) > all.csv; tail -q -n 1 *.csv >> all.csv", shell=True,
                            stdout=sys.stdout,
                            stderr=sys.stderr)
+import pandas as pd
+df = pd.read_csv(path+file_path+'/all.csv')
+print("\n".join([f"{k} = {v}" for k, v in df.sort_values(by="F1_val", ascending=False).iloc[0, 0:22].items()]))
+
 
