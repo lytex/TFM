@@ -14,6 +14,7 @@
 # ---
 
 # %%
+import multiprocessing
 import warnings
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
@@ -86,6 +87,7 @@ def descarga_process_light_curve(
         for _, row in tqdm(df.iterrows(), total=len(df)):
             results.append(process_func_continue(row))
     else:
+        n_proc = int(multiprocessing.cpu_count()*1.25)
         results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc)
     
     return results
