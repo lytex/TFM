@@ -104,6 +104,7 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     df_path = 'cumulative_2024.06.01_09.08.01.csv'
     use_download_cache = True
     lightcurve_cache = False
+    lightcurves = None
     
     n_proc = int(multiprocessing.cpu_count()*1.25)
     parallel = True
