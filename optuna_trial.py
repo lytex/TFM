@@ -46,6 +46,7 @@ from functools import partial
 
 from optuna.artifacts import FileSystemArtifactStore
 from optuna.artifacts import upload_artifact
+from tqdm import tqdm
 from taguchi import generate_taguchi
 
 
@@ -183,7 +184,8 @@ storage = "sqlite:///{}.db".format(study_name)
 
 study = optuna.create_study(direction="maximize", storage=storage)
 
-for global_level_list, local_level_list  in generate_taguchi(levels_global=6, levels_local=3):
+taguchi_list = list(generate_taguchi(levels_global=6, levels_local=3))
+for global_level_list, local_level_list  in tqdm(taguchi_list, prefix="taguchi"):
     if len(global_level_list) == 0 and len(local_level_list) == 0:
         use_wavelet = False
     else:
