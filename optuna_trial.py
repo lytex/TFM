@@ -185,7 +185,7 @@ storage = "sqlite:///{}.db".format(study_name)
 study = optuna.create_study(direction="maximize", storage=storage)
 
 taguchi_list = list(generate_taguchi(levels_global=6, levels_local=3))
-for global_level_list, local_level_list  in tqdm(taguchi_list, prefix="taguchi"):
+for global_level_list, local_level_list  in tqdm(taguchi_list):
     if len(global_level_list) == 0 and len(local_level_list) == 0:
         use_wavelet = False
     else:
