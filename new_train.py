@@ -42,6 +42,7 @@ entrenamiento = importlib.import_module("02_entrenamiento")
 
 GetBest = entrenamiento.GetBest
 FilterModel = entrenamiento.FilterModel
+F1_Score = entrenamiento.F1_Score
 get_data_split = entrenamiento.get_data_split
 gen_model_2_levels = entrenamiento.gen_model_2_levels
 gen_astronet = entrenamiento.gen_astronet
@@ -166,7 +167,7 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
             count = pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
             print("count:",  count[0]/count[1]*frac)
             model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
-                            metrics=[entrenamiento.F1_Score(),])
+                            metrics=[F1_Score(),])
     
     else:
         
@@ -293,13 +294,13 @@ def load_files(file, path):
 def load_files_wrapper(path, use_wavelet=True):
     import multiprocessing
     if use_wavelet:
-        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file][:260]
     else:
-        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
+        files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file][:260]
         
     func = partial(load_files, path=path)
             
-    lightcurves = progress_imap(func, files, n_cpu=multiprocessing.cpu_count()*4, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//multiprocessing.cpu_count()//4//10)
+    lightcurves = progress_imap(func, files, n_cpu=multiprocessing.cpu_count()*4, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//multiprocessing.cpu_count())
     return lightcurves
 
 def main(sigma = 20, sigma_upper = 5,
@@ -312,8 +313,8 @@ def main(sigma = 20, sigma_upper = 5,
             l1 = 0.00, l2 = 0.0, dropout = 0.0,
             epochs = 200, batch_size = 128, test_size=0.3,
             frac = 0.5, β=1.0,
-            download_dir="data3/",
-            path = "all_data_2024-07-17/all_data_2024-07-17/",
+            download_dir=None,
+            path = None,
             df_path = 'cumulative_2024.06.01_09.08.01.csv',
             use_download_cache = True,
             n_proc = 20,
