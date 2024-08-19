@@ -80,7 +80,7 @@ def descarga_process_light_curve(
             return e
 
 
-    df = pd.read_csv(df_path ,skiprows=144)[:100]
+    df = pd.read_csv(df_path ,skiprows=144)
 
     if not parallel:
         results = []
