@@ -164,3 +164,8 @@ print("Best hyperparameters: {}".format(trial.params))
 copyfile(f"{study_name}.db", f"{path+file_path}/{study_name}.db")
 print("copiando db a ", f"{path+file_path}/{study_name}.db")
 print(os.listdir(path+file_path+"/"))
+import subprocess
+process = subprocess.Popen(f"cd {path+file_path}; head -n +1 $(for file in *.csv; do echo $file; done | head -n 1) > all.csv; tail -q -n 1 *.csv >> all.csv", shell=True,
+                           stdout=sys.stdout,
+                           stderr=sys.stderr)
+
