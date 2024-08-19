@@ -1,3 +1,19 @@
+# ---
+# jupyter:
+#   jupytext:
+#     formats: ipynb,py:percent
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.16.2
+#   kernelspec:
+#     display_name: TFM
+#     language: python
+#     name: tfm
+# ---
+
+# %%
 print("optuna_trial.py, new code")
 # ---
 # jupyter:
@@ -26,9 +42,11 @@ import datetime
 import logging
 import sys
 from shutil import copyfile
+from functools import partial
 
 from optuna.artifacts import FileSystemArtifactStore
 from optuna.artifacts import upload_artifact
+from taguchi import generate_taguchi
 
 
 base_path = "./all_data_2024-07-17/"
@@ -40,10 +58,18 @@ file_path = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 os.makedirs(path+file_path, exist_ok=True)
 print("trial folder created:", path+file_path)
 
-lightcurves = load_files_wrapper(path=path, use_wavelet=True)
+lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
+lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
 
-def objective(trial):
-    global lightcurves
+def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=None):
+    global lightcurves_wavelet
+    global lightcurves_no_wavelet
+
+    if use_wavelet:
+        lightcurves = lightcurves_wavelet
+    else:
+        lightcurves = lightcurves_no_wavelet
+
     sigma = 20
     sigma_upper = 5
     num_bins_global = 2001
@@ -56,12 +82,11 @@ def objective(trial):
     wavelet_family = "sym5"
     
     
-    use_wavelet = True
     binary_classification = True
     k_fold = None
-    global_level_list = (1, 5,)
-    local_level_list = (1, 3,)
-    epochs = 100
+    # global_level_list = (1, 5,)
+    # local_level_list = (1, 3,)
+    epochs = 1
     batch_size = 128
     l1 = trial.suggest_float("l1", 0.0, 0.1)
     l2 = trial.suggest_float("l2", 0.0, 0.1)
@@ -154,12 +179,21 @@ study_name = "example-study"  # Unique identifier of the study.
 storage = "sqlite:///{}.db".format(study_name)
 
 study = optuna.create_study(direction="maximize", storage=storage)
-study.optimize(objective, n_trials=100)
 
-trial = study.best_trial
+for global_level_list, local_level_list  in generate_taguchi(levels_global=6, levels_local=3):
+    if len(global_level_list) == 0 and len(local_level_list) == 0:
+        use_wavelet = False
+    else:
+        use_wavelet = True
+        
+    print(f"Wavelet list: global: {global_level_list}, local: {local_level_list}, use_wavelet: {use_wavelet}")
+    objective_func = partial(objective, global_level_list=global_level_list, local_level_list=local_level_list, use_wavelet=use_wavelet)
+    study.optimize(objective_func, n_trials=10)
 
-print("Accuracy: {}".format(trial.value))
-print("Best hyperparameters: {}".format(trial.params))
+    trial = study.best_trial
+
+    print("Accuracy: {}".format(trial.value))
+    print("Best hyperparameters: {}".format(trial.params))
 
 copyfile(f"{study_name}.db", f"{path+file_path}/{study_name}.db")
 print("copiando db a ", f"{path+file_path}/{study_name}.db")
