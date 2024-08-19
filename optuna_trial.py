@@ -135,6 +135,8 @@ def objective(trial):
     now = datetime.datetime.now().strftime("%s")
     # upload_artifact(trial, path+file_path+"/"+now, artifact_store)
     result_df.to_csv(path+file_path+"/"+now+".csv", index=False)
+    print("guardando csv en", path+file_path+"/"+now+".csv")
+    print(os.listdir(path+file_path+"/"))
     print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
     print(cm)
 
@@ -160,3 +162,5 @@ print("Accuracy: {}".format(trial.value))
 print("Best hyperparameters: {}".format(trial.params))
 
 copyfile(f"{study_name}.db", f"{path+file_path}/{study_name}.db")
+print("copiando db a ", f"{path+file_path}/{study_name}.db")
+print(os.listdir(path+file_path+"/"))
