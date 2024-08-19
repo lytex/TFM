@@ -49,11 +49,11 @@ from optuna.artifacts import upload_artifact
 from taguchi import generate_taguchi
 
 
-base_path = "./all_data_2024-07-17/"
+base_path = "./all_data_2024-07-17/all_data_2024-07-17/"
 os.makedirs(base_path, exist_ok=True)
 artifact_store = FileSystemArtifactStore(base_path=base_path)
 
-path = "all_data_2024-07-17/"
+path = "all_data_2024-07-17/all_data_2024-07-17/"
 file_path = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 os.makedirs(path+file_path, exist_ok=True)
 print("trial folder created:", path+file_path)
@@ -97,8 +97,8 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     
     
     
-    download_dir="data3/"
-    path = "all_data_2024-07-17/"
+    download_dir="data3/data3/"
+    path = "all_data_2024-07-17/all_data_2024-07-17/"
     df_path = 'cumulative_2024.06.01_09.08.01.csv'
     use_download_cache = True
     lightcurve_cache = True
