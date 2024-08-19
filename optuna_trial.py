@@ -79,7 +79,9 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     num_durations = 4
     levels_global = 6
     levels_local = 3
-    wavelet_family = "sym5"
+
+    wavelet_family = trial.suggest_categorical("wavelet_family", [f"sym{N}" for N in range(2, 7)] + [f"db{N}" for N in range(1, 7)])
+    # wavelet_family = "sym5"
     
     
     binary_classification = True
@@ -101,7 +103,7 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     path = "all_data_2024-07-17/all_data_2024-07-17/"
     df_path = 'cumulative_2024.06.01_09.08.01.csv'
     use_download_cache = True
-    lightcurve_cache = True
+    lightcurve_cache = False
     
     n_proc = int(multiprocessing.cpu_count()*1.25)
     parallel = True
@@ -188,7 +190,7 @@ for global_level_list, local_level_list  in generate_taguchi(levels_global=6, le
         
     print(f"Wavelet list: global: {global_level_list}, local: {local_level_list}, use_wavelet: {use_wavelet}")
     objective_func = partial(objective, global_level_list=global_level_list, local_level_list=local_level_list, use_wavelet=use_wavelet)
-    study.optimize(objective_func, n_trials=10)
+    study.optimize(objective_func, n_trials=100)
 
     trial = study.best_trial
 
