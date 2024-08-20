@@ -89,7 +89,7 @@ def descarga_process_light_curve(
     else:
         # n_proc = int(multiprocessing.cpu_count()*1.25)
         n_proc = 50
-        results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=1)
+        results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc)
     
     return results
 
