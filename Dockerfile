@@ -11,7 +11,7 @@ COPY requirements.txt requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip python3.7 -m pip install -r requirements.txt --target /usr/local/lib/python3.7/dist-packages
 RUN useradd --create-home -u 42420 ovh
 
-USER ovh
+# USER ovh
 RUN mkdir -p /home/ovh/code
 WORKDIR /home/ovh/code
 COPY *.csv /home/ovh/code
