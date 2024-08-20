@@ -212,3 +212,5 @@ df = pd.read_csv(path+file_path+'/all.csv')
 print("\n".join([f"{k} = {v}" for k, v in df.sort_values(by="F1_val", ascending=False).iloc[0, 0:22].items()]))
 
 
+
+# %%

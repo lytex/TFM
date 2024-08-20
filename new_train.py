@@ -358,7 +358,7 @@ def main(sigma = 20, sigma_upper = 5,
 
     
     precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
-    precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
+    precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification)
     if return_lightcurves:
         return precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1, lightcurves
     else:
@@ -423,6 +423,8 @@ if __name__ == "__main__":
                 lightcurve_cache=lightcurve_cache,
         )
 
+    ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
+    print("P_val : %f\nR_val : %f\nF1_val: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, Fβ_val))
     ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
     print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
 
