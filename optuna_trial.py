@@ -59,18 +59,18 @@ file_path = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 os.makedirs(path+file_path, exist_ok=True)
 print("trial folder created:", path+file_path)
 
-lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
-lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
+# lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
+# lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
 
 def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=None):
-    global lightcurves_wavelet
-    global lightcurves_no_wavelet
-
-    if use_wavelet:
-        lightcurves = lightcurves_wavelet
-    else:
-        lightcurves = lightcurves_no_wavelet
-
+    # global lightcurves_wavelet
+    # global lightcurves_no_wavelet
+    #
+    # if use_wavelet:
+    #     lightcurves = lightcurves_wavelet
+    # else:
+    #     lightcurves = lightcurves_no_wavelet
+    #
     sigma = 20
     sigma_upper = 5
     num_bins_global = 2001
