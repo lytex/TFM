@@ -44,6 +44,7 @@ from parallelbar import progress_map, progress_imap
 from tqdm import tqdm
 from functools import partial
 import logging
+from typing import Union
 
 # plt.ion()
 # mpl.use("module://mplcairo.qt")
@@ -64,7 +65,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         num_bins_local=201, bin_width_factor_local=0.16, num_durations=4,
                         wavelet_family=None, levels_global=None, levels_local=None, cut_border_percent=0.1,
                         plot = False, plot_comparative=False,save=False, path="", plot_folder=None, use_download_cache=False, df_path=None, title="",
-                        cache_dict=None, use_wavelet=True) -> LightCurveWaveletGlobalLocalCollection|LightCurveShallueCollection:
+                        cache_dict=None, use_wavelet=True) -> Union[LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection]:
     """
 
     Args:
