@@ -87,7 +87,8 @@ def descarga_process_light_curve(
         for _, row in tqdm(df.iterrows(), total=len(df)):
             results.append(process_func_continue(row))
     else:
-        n_proc = int(multiprocessing.cpu_count()*1.25)
+        # n_proc = int(multiprocessing.cpu_count()*1.25)
+        n_proc = 20
         results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc)
     
     return results
@@ -338,9 +339,9 @@ def main(sigma = 20, sigma_upper = 5,
                 num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
                 levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
                 plot=False, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=None, use_download_cache=use_download_cache,
-                parallel=parallel
+                use_wavelet=use_wavelet, parallel=parallel
             )
-            lightcurves = [x for x in results if type(x) in (LightCurveWaveletGlobalLocalCollection, )]
+            lightcurves = [x for x in results if type(x) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection)]
     
         
     lightcurves = [lc for lc in lightcurves if lc is not None]

@@ -64,7 +64,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                         num_bins_local=201, bin_width_factor_local=0.16, num_durations=4,
                         wavelet_family=None, levels_global=None, levels_local=None, cut_border_percent=0.1,
                         plot = False, plot_comparative=False,save=False, path="", plot_folder=None, use_download_cache=False, df_path=None, title="",
-                        cache_dict=None) -> LightCurveWaveletGlobalLocalCollection:
+                        cache_dict=None, use_wavelet=True) -> LightCurveWaveletGlobalLocalCollection|LightCurveShallueCollection:
     """
 
     Args:
@@ -179,6 +179,11 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
                                     global_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, normalize=True),
                                     local_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=True)
                                    ).save(path)
+    if not use_wavelet:
+        return LightCurveShallueCollection(row.kepoi_name, row,
+                                    global_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, normalize=True),
+                                    local_view(lc_fold.time.to_value("jd"), lc_fold.flux.to_value(), row.koi_period, row.koi_duration/24.0, normalize=True)
+                                   )
         
 
      # 4. Dividir en pares e impares
