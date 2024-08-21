@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.cache/pip python3.7 -m pip install -r requi
 RUN useradd --create-home -u 42420 ovh
 RUN apt-get install -y sudo
 
-# USER ovh
+USER ovh
 RUN mkdir -p /home/ovh/code
 WORKDIR /home/ovh/code
 COPY *.csv /home/ovh/code
