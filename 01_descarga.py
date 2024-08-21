@@ -97,11 +97,10 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if logger.hasHandlers():
         logger.handlers.clear()
     formatter =  logging.Formatter(FORMAT)
-    
+    fh = logging.FileHandler(f'logs/{os.getpid()}.log')
+    fh.setFormatter(formatter)
     logger.setLevel("INFO")
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    logger.addHandler(fh)
 
     if plot_folder is not None:
         os.makedirs(os.path.dirname(f"{plot_folder}/plot/"), exist_ok=True)
