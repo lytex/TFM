@@ -14,6 +14,8 @@
 # ---
 
 # %%
+from multiprocessing import set_start_method
+set_start_method("spawn")
 import multiprocessing
 import warnings
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
@@ -38,8 +40,6 @@ import gc
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 mpl.use("agg")
 
-from multiprocessing import set_start_method
-set_start_method("spawn")
 
 descarga = importlib.import_module("01_descarga")
 entrenamiento = importlib.import_module("02_entrenamiento")

@@ -31,6 +31,8 @@ print("optuna_trial.py, new code")
 # ---
 
 # %%
+from multiprocessing import set_start_method
+set_start_method("spawn")
 from new_train import main, load_files_wrapper
 import pandas as pd
 import gc
@@ -48,10 +50,6 @@ from optuna.artifacts import FileSystemArtifactStore
 from optuna.artifacts import upload_artifact
 from tqdm import tqdm
 from taguchi import generate_taguchi
-
-
-from multiprocessing import set_start_method
-set_start_method("spawn")
 
 
 base_path = "./all_data_2024-07-17/all_data_2024-07-17/"
