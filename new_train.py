@@ -14,8 +14,6 @@
 # ---
 
 # %%
-from multiprocessing import set_start_method
-set_start_method("spawn", force=True)
 import multiprocessing
 import warnings
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
@@ -369,6 +367,11 @@ def main(sigma = 20, sigma_upper = 5,
 if __name__ == "__main__":
 
     # %matplotlib inline
+
+    from multiprocessing import set_start_method
+    set_start_method("spawn", force=True)
+
+
     sigma = 20
     sigma_upper = 5
     num_bins_global = 2001
