@@ -32,7 +32,7 @@ print("optuna_trial.py, new code")
 
 # %%
 from multiprocessing import set_start_method
-set_start_method("spawn")
+set_start_method("spawn", force=True)
 from new_train import main, load_files_wrapper
 import pandas as pd
 import gc
