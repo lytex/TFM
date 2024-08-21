@@ -50,6 +50,10 @@ from tqdm import tqdm
 from taguchi import generate_taguchi
 
 
+from multiprocessing import set_start_method
+set_start_method("spawn")
+
+
 base_path = "./all_data_2024-07-17/all_data_2024-07-17/"
 os.makedirs(base_path, exist_ok=True)
 artifact_store = FileSystemArtifactStore(base_path=base_path)

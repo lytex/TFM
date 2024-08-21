@@ -38,6 +38,9 @@ import gc
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 mpl.use("agg")
 
+from multiprocessing import set_start_method
+set_start_method("spawn")
+
 descarga = importlib.import_module("01_descarga")
 entrenamiento = importlib.import_module("02_entrenamiento")
 
@@ -87,7 +90,7 @@ def descarga_process_light_curve(
         for _, row in tqdm(df.iterrows(), total=len(df)):
             results.append(process_func_continue(row))
     else:
-        n_proc = int(multiprocessing.cpu_count()*2*4)
+        n_proc = int(multiprocessing.cpu_count()*2)
         results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc)
     
     return results
