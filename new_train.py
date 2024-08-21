@@ -36,6 +36,7 @@ import importlib
 import matplotlib as mpl
 import gc
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from multiprocessing import imap
 mpl.use("agg")
 
 
@@ -89,7 +90,7 @@ def descarga_process_light_curve(
             results.append(process_func_continue(row))
     else:
         n_proc = int(multiprocessing.cpu_count()*2)
-        results = progress_imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc)
+        results = tqdm(imap(process_func, [row for _, row in df.iterrows()], n_cpu=n_proc, total=len(df), error_behavior='coerce', chunk_size=len(df)//n_proc), total=n_proc)
     
     return results
 
