@@ -17,6 +17,8 @@
 if __name__ == "__main__":
     from multiprocessing import set_start_method
     set_start_method("spawn", force=True)
+    import os
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     from new_train import main, load_files_wrapper
     import pandas as pd
     import gc

@@ -283,9 +283,12 @@ def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classificatio
 # precision, recall, F1, Fβ, cm = get_metrics(num2class, X_test, y_test, model_1, β=2.0)
 # print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
 
-def load_files(file, path):
+def load_files(file, path, use_wavelet=None):
     try:
-        global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
+        if use_wavelet:
+            global_local = LightCurveWaveletGlobalLocalCollection.from_pickle(path+file)
+        else:
+            global_local = LightCurveShallueCollection.from_pickle(path+file)
     except Exception as e:
         import traceback
         print(f"Error con archivo {path}/{file}")
@@ -295,13 +298,13 @@ def load_files(file, path):
     return global_local
 
 def load_files_wrapper(path, use_wavelet=True):
-    import multiprocessing
+    from new_train import load_files
     if use_wavelet:
         files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" in file]
     else:
         files = [file for file in os.listdir(path) if file.endswith(".pickle") and "wavelet" not in file]
         
-    func = partial(load_files, path=path)
+    func = partial(load_files, path=path, use_wavelet=use_wavelet)
             
     lightcurves = progress_imap(func, files, n_cpu=multiprocessing.cpu_count()*4, total=len(files), executor='processes', error_behavior='raise', chunk_size=len(files)//multiprocessing.cpu_count()//4//10)
     return lightcurves
@@ -327,7 +330,7 @@ def main(sigma = 20, sigma_upper = 5,
             lightcurves=None,
     ):
 
-    
+
     if lightcurves is None:
         if lightcurve_cache:
             lightcurves = load_files_wrapper(path=path, use_wavelet=use_wavelet)
@@ -368,6 +371,8 @@ if __name__ == "__main__":
 
     # %matplotlib inline
 
+    import os
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     from multiprocessing import set_start_method
     set_start_method("spawn", force=True)
 
