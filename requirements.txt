@@ -1,6 +1,5 @@
 absl-py==2.1.0            # via tensorboard, tensorflow
 alembic==1.12.1           # via optuna
-anyio==3.7.1              # via watchfiles
 astropy==4.3.1            # via -r requirements.in, astroquery, lightkurve, pyvo
 astroquery==0.4.7         # via lightkurve
 astunparse==1.6.3         # via tensorflow
@@ -19,7 +18,6 @@ cycler==0.11.0            # via matplotlib
 debugpy==1.7.0            # via ipykernel
 decorator==5.1.1          # via ipython
 entrypoints==0.4          # via jupyter-client
-exceptiongroup==1.2.2     # via anyio
 fbpca==1.0                # via lightkurve
 flatbuffers==1.12         # via tensorflow
 fonttools==4.38.0         # via matplotlib
@@ -32,7 +30,7 @@ greenlet==3.0.3           # via sqlalchemy
 grpcio==1.62.2            # via tensorboard, tensorflow
 h5py==3.8.0               # via tensorflow
 html5lib==1.1             # via astroquery
-idna==3.7                 # via anyio, requests
+idna==3.7                 # via requests
 importlib-metadata==6.7.0  # via alembic, astropy, keyring, mako, markdown, sqlalchemy
 importlib-resources==5.12.0  # via alembic, keyring
 ipykernel==6.16.2         # via -r requirements.in
@@ -97,7 +95,6 @@ scipy==1.7.3              # via lightkurve, oktopus, scikit-learn
 secretstorage==3.3.3      # via keyring
 sip==4.19.8               # via pyqt5
 six==1.16.0               # via astunparse, google-pasta, html5lib, keras-preprocessing, patsy, python-dateutil, tensorflow
-sniffio==1.3.1            # via anyio
 soupsieve==2.4.1          # via beautifulsoup4
 sqlalchemy==2.0.32        # via alembic, optuna
 tensorboard==2.9.1        # via tensorflow
@@ -111,10 +108,9 @@ threadpoolctl==3.1.0      # via scikit-learn
 tornado==6.2              # via bokeh, ipykernel, jupyter-client
 tqdm==4.66.4              # via lightkurve, optuna, parallelbar
 traitlets==5.9.0          # via ipykernel, ipython, jupyter-client, jupyter-core, matplotlib-inline
-typing-extensions==4.7.1  # via alembic, anyio, bokeh, importlib-metadata, kiwisolver, sqlalchemy, tensorflow
+typing-extensions==4.7.1  # via alembic, bokeh, importlib-metadata, kiwisolver, sqlalchemy, tensorflow
 uncertainties==3.1.7      # via lightkurve
 urllib3==2.0.7            # via requests
-watchfiles==0.20.0        # via -r requirements.in
 wcwidth==0.2.13           # via prompt-toolkit
 webencodings==0.5.1       # via html5lib
 werkzeug==2.2.3           # via tensorboard
