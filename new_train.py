@@ -89,7 +89,7 @@ def descarga_process_light_curve(
         for _, row in tqdm(df.iterrows(), total=len(df)):
             results.append(process_func_continue(row))
     else:
-        n_proc = int(multiprocessing.cpu_count()*2)
+        n_proc = 20
         with multiprocessing.Pool(n_proc) as p:
             results = list(p.imap(process_func, [row for _, row in df.iterrows()], chunksize=len(df)//n_proc))
     return results
