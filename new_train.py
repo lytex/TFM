@@ -22,6 +22,7 @@ from LCWavelet import *
 from tqdm import tqdm
 from collections import defaultdict
 from parallelbar import progress_imap
+from tqdm.contrib.concurrent import process_map
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, concatenate,Conv1D, Flatten,Dropout , BatchNormalization, MaxPooling1D, AveragePooling1D, ActivityRegularization
@@ -89,9 +90,7 @@ def descarga_process_light_curve(
             results.append(process_func_continue(row))
     else:
         n_proc = int(multiprocessing.cpu_count()*2)
-        with multiprocessing.Pool(n_proc) as p:
-            results = list(tqdm(p.imap(process_func, [row for _, row in df.iterrows()], chunksize=len(df)//n_proc), total=len(df)))
-    
+        process_map(process_func, [row for _, row in df.iterrows()], max_workers=n_proc, total=len(df), chunksize=len(df)//n_proc))
     return results
 
 # %% [raw]
