@@ -97,10 +97,11 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if logger.hasHandlers():
         logger.handlers.clear()
     formatter =  logging.Formatter(FORMAT)
-    fh = logging.FileHandler(f'logs/{os.getpid()}.log')
-    fh.setFormatter(formatter)
+    
     logger.setLevel("INFO")
-    logger.addHandler(fh)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
     if plot_folder is not None:
         os.makedirs(os.path.dirname(f"{plot_folder}/plot/"), exist_ok=True)
@@ -310,6 +311,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if(save):
         logger.info(f'guardando wavelets obtenidas en {path}...')
         lc_wavelet_collection.save(path)
+    os.remove(f'logs/{os.getpid()}.log')
     return lc_wavelet_collection
 
 if __name__ == "__main__":

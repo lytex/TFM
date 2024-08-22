@@ -15,6 +15,7 @@
 
 # %%
 import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import warnings
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
@@ -54,6 +55,37 @@ process_light_curve = descarga.process_light_curve
 load_files = entrenamiento.load_files
 
 
+def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
+    "Collect data into non-overlapping fixed-length chunks or blocks."
+    # grouper('ABCDEFG', 3) → ABC DEF
+    iterators = [iter(iterable)] * n
+    return zip(*iterators)
+
+
+def process_func_continue_row(row,
+    sigma=None, sigma_upper=None,
+    num_bins_global=None, bin_width_factor_global=None,
+    num_bins_local=None, bin_width_factor_local=None, num_durations=None,
+    path=None, download_dir=None, use_download_cache=None,
+    levels_global=None, levels_local=None, wavelet_family=None, use_wavelet=None,):
+
+    descarga = importlib.import_module("01_descarga")
+    process_light_curve = descarga.process_light_curve
+    process_func =  partial(process_light_curve,
+                            sigma=sigma, sigma_upper=sigma_upper,
+                            num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
+                            num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
+                            levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family, use_wavelet=use_wavelet,
+                            plot=False, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=None, use_download_cache=use_download_cache, cache_dict=dict())
+    print(f"Received {row.kepoi_name}")
+    try:
+        return process_func(row), row
+    except Exception as e:
+        print(f"Exception on {row.kepoi_name}")
+        import traceback
+        traceback.print_exc()
+        return e, row
+
 def descarga_process_light_curve(
     df_path=None,
     sigma=None, sigma_upper=None,
@@ -82,6 +114,7 @@ def descarga_process_light_curve(
             return e
 
 
+
     df = pd.read_csv(df_path ,skiprows=144)
 
     if not parallel:
@@ -89,9 +122,31 @@ def descarga_process_light_curve(
         for _, row in tqdm(df.iterrows(), total=len(df)):
             results.append(process_func_continue(row))
     else:
-        n_proc = 20
-        with multiprocessing.Pool(n_proc) as p:
-            results = list(p.imap(process_func, [row for _, row in df.iterrows()], chunksize=len(df)//n_proc))
+        n_cpu = multiprocessing.cpu_count()*2
+        with ProcessPoolExecutor(max_workers=n_cpu) as executor:
+            futures = {}
+            results = []
+            failed = []
+            for group in list(grouper(df.iterrows(), 100))+failed:
+                for _, row in group:
+                    future = executor.submit(process_func_continue_row, row,
+                    sigma=sigma, sigma_upper=sigma_upper,
+                    num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
+                    num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
+                    path=path, download_dir=download_dir, use_download_cache=use_download_cache,
+                    levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family, use_wavelet=use_wavelet,
+                                             )
+                    futures[future] = row
+                for future in as_completed(futures, timeout=30*60):
+                    try:
+                        result, row = future.result()
+                        if type(result) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection):
+                            results.append(result)
+                        else:
+                            failed.append([result, row])
+                    except:
+                            pass
+
     return results
 
 # %% [raw]
