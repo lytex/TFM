@@ -47,18 +47,18 @@ if __name__ == "__main__":
     os.makedirs(path+file_path, exist_ok=True)
     print("trial folder created:", path+file_path)
 
-    # lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
-    # lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
+    lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
+    lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
 
     def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=None):
-        # global lightcurves_wavelet
-        # global lightcurves_no_wavelet
-        #
-        # if use_wavelet:
-        #     lightcurves = lightcurves_wavelet
-        # else:
-        #     lightcurves = lightcurves_no_wavelet
-        #
+        global lightcurves_wavelet
+        global lightcurves_no_wavelet
+
+        if use_wavelet:
+            lightcurves = lightcurves_wavelet
+        else:
+            lightcurves = lightcurves_no_wavelet
+
         sigma = 20
         sigma_upper = 5
         num_bins_global = 2001
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         # wavelet_family = "sym5"
 
 
-        binary_classification = True
+        binary_classification = trial.suggest_categorical("binary_classification", [True, False])
         k_fold = None
         # global_level_list = (1, 5,)
         # local_level_list = (1, 3,)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         df_path = 'cumulative_2024.06.01_09.08.01.csv'
         use_download_cache = True
         lightcurve_cache = False
-        lightcurves = None
+        # lightcurves = None
 
         n_proc = int(multiprocessing.cpu_count()*1.25)
         parallel = True
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
         print(f"Wavelet list: global: {global_level_list}, local: {local_level_list}, use_wavelet: {use_wavelet}")
         objective_func = partial(objective, global_level_list=global_level_list, local_level_list=local_level_list, use_wavelet=use_wavelet)
-        study.optimize(objective_func, n_trials=100)
+        study.optimize(objective_func, n_trials=1000)
 
         trial = study.best_trial
 
