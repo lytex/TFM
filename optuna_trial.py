@@ -27,7 +27,7 @@ if __name__ == "__main__":
     import optuna
     import multiprocessing
     import datetime
-    # import logging
+    import logging
     import sys
     from shutil import copyfile
     from functools import partial
@@ -161,7 +161,7 @@ if __name__ == "__main__":
 
 
     # Add stream handler of stdout to show the messages
-    # optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
+    optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
     study_name = "example-study"  # Unique identifier of the study.
 
     # storage = optuna.storages.JournalStorage(
