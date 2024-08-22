@@ -90,7 +90,7 @@ def descarga_process_light_curve(
             results.append(process_func_continue(row))
     else:
         n_proc = int(multiprocessing.cpu_count()*2)
-        process_map(process_func, [row for _, row in df.iterrows()], max_workers=n_proc, total=len(df), chunksize=len(df)//n_proc))
+        process_map(process_func, [row for _, row in df.iterrows()], max_workers=n_proc, total=len(df), chunksize=len(df)//n_proc)
     return results
 
 # %% [raw]
