@@ -9,7 +9,6 @@ while (( $(pgrep python3.7 | wc -l)  < 2)); do
     sleep 60
 done
 
-
-(setsid tail -fq /home/ovh/code/logs/*.log &)
+(setsid python3.7 watchlogs.py &)
 
 wait $python_proc

@@ -8,3 +8,4 @@ pydot
 PyQt5<5.9
 ipykernel
 optuna
+watchfiles

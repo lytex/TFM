@@ -310,6 +310,7 @@ def process_light_curve(row, mission="Kepler", download_dir="data3/",
     if(save):
         logger.info(f'guardando wavelets obtenidas en {path}...')
         lc_wavelet_collection.save(path)
+    os.remove(f'logs/{os.getpid()}.log')
     return lc_wavelet_collection
 
 if __name__ == "__main__":

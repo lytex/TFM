@@ -15,6 +15,7 @@
 
 # %%
 import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import warnings
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
@@ -54,6 +55,12 @@ process_light_curve = descarga.process_light_curve
 load_files = entrenamiento.load_files
 
 
+def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
+    "Collect data into non-overlapping fixed-length chunks or blocks."
+    # grouper('ABCDEFG', 3) → ABC DEF
+    iterators = [iter(iterable)] * n
+    return zip(*iterators)
+
 def descarga_process_light_curve(
     df_path=None,
     sigma=None, sigma_upper=None,
@@ -81,6 +88,16 @@ def descarga_process_light_curve(
             traceback.print_exc()
             return e
 
+    def process_func_continue_row(row):
+        print(f"Received {row.kepoi_name}")
+        try:
+            return process_func(row), row
+        except Exception as e:
+            print(f"Exception on {row.kepid}")
+            import traceback
+            traceback.print_exc()
+            return e, row
+
 
     df = pd.read_csv(df_path ,skiprows=144)
 
@@ -89,9 +106,22 @@ def descarga_process_light_curve(
         for _, row in tqdm(df.iterrows(), total=len(df)):
             results.append(process_func_continue(row))
     else:
-        n_proc = 20
-        with multiprocessing.Pool(n_proc) as p:
-            results = list(p.imap(process_func, [row for _, row in df.iterrows()], chunksize=len(df)//n_proc))
+        n_cpu = multiprocessing.cpu_count()*2
+        with ProcessPoolExecutor(max_workers=n_cpu) as executor:
+            futures = {}
+            results = []
+            failed = []
+            for group in list(grouper(df.iterrows(), 100))+failed:
+                for _, row in group:
+                    print(f"Submitting {row.kepoi_name}")
+                    future = executor.submit(process_func_continue_row, row)
+                    futures[future] = row
+                for result, row in tqdm(as_completed(futures, timeout=5), total=len(futures)):
+                    if type(result) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection):
+                        results.append(result)
+                    else:
+                        failed.append([result, row])
+
     return results
 
 # %% [raw]
