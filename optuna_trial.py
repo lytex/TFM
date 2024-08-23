@@ -55,6 +55,9 @@ if __name__ == "__main__":
         global lightcurves_wavelet
         global lightcurves_no_wavelet
 
+        binary_classification = trial.suggest_categorical("binary_classification", [True, False])
+        use_wavelet = use_wavelet or not trial.params["binary_classification"]
+
         if use_wavelet:
             lightcurves = lightcurves_wavelet
         else:
@@ -81,7 +84,6 @@ if __name__ == "__main__":
         # wavelet_family = trial.suggest_categorical("wavelet_family", [f"sym{N}" for N in range(2, 7)] + [f"db{N}" for N in range(1, 7)])
 
 
-        binary_classification = True
         k_fold = None
         # global_level_list = (1, 5,)
         # local_level_list = (1, 3,)
