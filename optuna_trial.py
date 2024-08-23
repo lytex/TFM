@@ -42,7 +42,7 @@ import datetime
 import logging
 import sys
 from shutil import copyfile
-from functools import partial
+from functools import partial, reduce
 
 from optuna.artifacts import FileSystemArtifactStore
 from optuna.artifacts import upload_artifact
@@ -65,6 +65,19 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     global lightcurves_wavelet
     global lightcurves_no_wavelet
 
+    levels_global = 6
+    levels_local = 3
+    global_level_list = trial.suggest_categorical([tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
+    local_level_list = trial.suggest_categorical([tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
+
+    # global_level_list = (1, 5,)
+    # local_level_list = (1, 3,)
+
+    if len(trial.params["global_level_list"]) == 0 and len(trial.params["local_level_list"]) == 0:
+        use_wavelet = False
+    else:
+        use_wavelet = True
+
     if use_wavelet:
         lightcurves = lightcurves_wavelet
     else:
@@ -77,15 +90,11 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     num_bins_local = 201
     bin_width_factor_local = 0.16
     num_durations = 4
-    levels_global = 6
-    levels_local = 3
     wavelet_family = "sym5"
     
     
     binary_classification = True
     k_fold = None
-    # global_level_list = (1, 5,)
-    # local_level_list = (1, 3,)
     epochs = 100
     batch_size = 128
     l1 = trial.suggest_float("l1", 0.0, 0.1)
@@ -180,21 +189,16 @@ storage = "sqlite:///{}.db".format(study_name)
 
 study = optuna.create_study(direction="maximize", storage=storage)
 
-for global_level_list, local_level_list  in generate_taguchi(levels_global=6, levels_local=3):
-    if len(global_level_list) == 0 and len(local_level_list) == 0:
-        use_wavelet = False
-    else:
-        use_wavelet = True
-        
-    print(f"Wavelet list: global: {global_level_list}, local: {local_level_list}, use_wavelet: {use_wavelet}")
-    objective_func = partial(objective, global_level_list=global_level_list, local_level_list=local_level_list, use_wavelet=use_wavelet)
-    study.optimize(objective_func, n_trials=300)
+study.optimize(objective, n_trials=300)
 
-    trial = study.best_trial
+trial = study.best_trial
 
-    print("Accuracy: {}".format(trial.value))
-    print("Best hyperparameters: {}".format(trial.params))
+print("Accuracy: {}".format(trial.value))
+print("Best hyperparameters: {}".format(trial.params))
 
+from optuna.importance import PedAnovaImportanceEvaluator
+evaluator = PedAnovaImportanceEvaluator()
+evaluator.evaluate(study)
 copyfile(f"{study_name}.db", f"{path+file_path}/{study_name}.db")
 print("copiando db a ", f"{path+file_path}/{study_name}.db")
 print(os.listdir(path+file_path+"/"))
