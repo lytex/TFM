@@ -133,7 +133,7 @@ def descarga_process_light_curve(
         futures = {}
         results = []
         failed = []
-        for group in list(grouper(df.iterrows(), 10)):
+        for group in list(grouper(df.iterrows(), 100)):
             print("len(group):", len(group))
             group = pd.DataFrame([x[1] for x in group] + [x[1] for x in failed]).drop_duplicates()
             group = list(group.iterrows())
@@ -172,7 +172,9 @@ def descarga_process_light_curve(
                     result, row = future.result()
                     if type(result) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection):
                         results.append(result)
-                        failed.remove([None, row])
+                        print("lenfailed", len(failed))
+                        failed = [x for x in failed if x[1] != row]
+                        print("lenfailed", len(failed))
                 except BrokenProcessPool as exc:
                     print("multiprocessing exc 3:", exc)
                     traceback.print_tb(exc.__traceback__)

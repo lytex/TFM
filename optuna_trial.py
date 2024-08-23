@@ -25,9 +25,10 @@ if __name__ == "__main__":
     import os
     import tensorflow as tf
     import optuna
+    import traceback
     import multiprocessing
     import datetime
-    import logging
+    # import logging
     import sys
     from shutil import copyfile
     from functools import partial
@@ -69,6 +70,13 @@ if __name__ == "__main__":
         levels_global = 6
         levels_local = 3
 
+
+        num_bins_global = trial.suggest_int("num_bins_global", 201, 20001, step=20)
+        bin_width_factor_global = 1 / trial.params.get("num_bins_global")
+        num_bins_local = trial.suggest_int("num_bins_local", trial.params.get("num_bins_global")//5, trial.params.get("num_bins_global")*100//5, step=4)
+        bin_width_factor_local = trial.suggest_float("bin_width_factor_local", 0.016, 1.6)
+        num_durations = trial.suggest_int("num_durations", 1, 6)
+
         wavelet_family = trial.suggest_categorical("wavelet_family", [f"sym{N}" for N in range(2, 7)] + [f"db{N}" for N in range(1, 7)])
         # wavelet_family = "sym5"
 
@@ -99,26 +107,44 @@ if __name__ == "__main__":
         parallel = True
 
 
-        precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1 = main(sigma=sigma, sigma_upper=sigma_upper,
-                    num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
-                    num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
-                    levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
-                    use_wavelet=use_wavelet, binary_classification=binary_classification,
-                    k_fold=k_fold,
-                    global_level_list=global_level_list, local_level_list=local_level_list,
-                    l1=l1, l2=l2, dropout=dropout,
-                    epochs=epochs, batch_size=batch_size,
-                    frac=frac, β=β,
-                    download_dir=download_dir,
-                    path=path,
-                    df_path=df_path,
-                    use_download_cache=use_download_cache,
-                    n_proc=n_proc,
-                    parallel=parallel,
-                    lightcurve_cache=lightcurve_cache,
-                    lightcurves=lightcurves,
-            )
+        try:
+            precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1 = main(sigma=sigma, sigma_upper=sigma_upper,
+                        num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
+                        num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
+                        levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
+                        use_wavelet=use_wavelet, binary_classification=binary_classification,
+                        k_fold=k_fold,
+                        global_level_list=global_level_list, local_level_list=local_level_list,
+                        l1=l1, l2=l2, dropout=dropout,
+                        epochs=epochs, batch_size=batch_size,
+                        frac=frac, β=β,
+                        download_dir=download_dir,
+                        path=path,
+                        df_path=df_path,
+                        use_download_cache=use_download_cache,
+                        n_proc=n_proc,
+                        parallel=parallel,
+                        lightcurve_cache=lightcurve_cache,
+                        lightcurves=lightcurves,
+                )
+        except Exception as exc:
 
+            print("optuna exc:", exc)
+            traceback.print_tb(exc.__traceback__)
+            precision = 0
+            recall = 0
+            F1 = 0
+            Fβ = 0
+            cm = [[0, 0], [0, 0]]
+            num2class = {0: None, 1: None}
+            precision_val = 0
+            recall_val = 0
+            F1_val = 0
+            Fβ_val = 0
+            cm_val = [[0, 0], [0, 0]]
+            history_1 = []
+            
+    
         gc.collect()
         tf.keras.backend.clear_session()
 
