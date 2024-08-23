@@ -42,8 +42,6 @@ import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures.process import BrokenProcessPool
 import pandas as pd
-from new_train import grouper
-from time import sleep
 import traceback
 mpl.use("agg")
 
@@ -129,14 +127,19 @@ def descarga_process_light_curve(
         for _, row in tqdm(df.iterrows(), total=len(df)):
             results.append(process_func_continue(row))
     else:
-        n_cpu = multiprocessing.cpu_count()*2
+        n_cpu = multiprocessing.cpu_count()*4
 
         executor = ProcessPoolExecutor(max_workers=n_cpu)
         futures = {}
         results = []
         failed = []
-        for group in list(grouper(df.iterrows(), 100))+failed:
+        for group in list(grouper(df.iterrows(), 10)):
+            print("len(group):", len(group))
+            group = pd.DataFrame([x[1] for x in group] + [x[1] for x in failed]).drop_duplicates()
+            group = list(group.iterrows())
             for _, row in group:
+                failed = pd.DataFrame([x[1] for x in failed] + [x[1] for x in group]).drop_duplicates()
+                failed = list(failed.iterrows())
                 try:
                     future = executor.submit(process_func_continue_row, row,
                     sigma=sigma, sigma_upper=sigma_upper,
@@ -156,6 +159,12 @@ def descarga_process_light_curve(
                     if exc is not None:
                         print("multiprocessing exc 1:", exc)
                         traceback.print_tb(exc.__traceback__)
+                except BrokenProcessPool as exc:
+                    print("multiprocessing exc 2:", exc)
+                    traceback.print_tb(exc.__traceback__)
+                    executor.shutdown(wait=False)
+                    print("BrokenProcessPool, creating new ProcessPoolExecutor")
+                    executor = ProcessPoolExecutor(max_workers=n_cpu)
                 except Exception as exc:
                     print("multiprocessing exc 2:", exc)
                     traceback.print_tb(exc.__traceback__)
@@ -164,6 +173,12 @@ def descarga_process_light_curve(
                     if type(result) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection):
                         results.append(result)
                         failed.remove([None, row])
+                except BrokenProcessPool as exc:
+                    print("multiprocessing exc 3:", exc)
+                    traceback.print_tb(exc.__traceback__)
+                    executor.shutdown(wait=False)
+                    print("BrokenProcessPool, creating new ProcessPoolExecutor")
+                    executor = ProcessPoolExecutor(max_workers=n_cpu)
                 except Exception as exc:
                     print("multiprocessing exc 3:", exc)
                     traceback.print_tb(exc.__traceback__)
