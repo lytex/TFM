@@ -70,6 +70,9 @@ if __name__ == "__main__":
         levels_global = 6
         levels_local = 3
 
+        binary_classification = trial.suggest_categorical("binary_classification", [True, False])
+        use_wavelet = use_wavelet or not trial.params["binary_classification"]
+
 
         num_bins_global = trial.suggest_int("num_bins_global", 201, 20001, step=20)
         bin_width_factor_global = 1 / trial.params.get("num_bins_global")
