@@ -28,7 +28,7 @@ if __name__ == "__main__":
     import traceback
     import multiprocessing
     import datetime
-    # import logging
+    import logging
     import sys
     from shutil import copyfile
     from functools import partial
