@@ -139,6 +139,10 @@ def descarga_process_light_curve(
                     futures[future] = row
                 for future in as_completed(futures, timeout=30*60):
                     try:
+                        print(future.exception())
+                    except:
+                        pass
+                    try:
                         result, row = future.result()
                         if type(result) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection):
                             results.append(result)
@@ -216,7 +220,7 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
     if use_wavelet:
         if binary_classification:
             model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-                            metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(),])
+                            metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(),])
         else:
             
             # model_1.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
@@ -233,9 +237,8 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
         count =  pd.DataFrame({'col': y_entire}).reset_index(drop=False).groupby('col').index.count()
         print("count:",  count[0]/count[1]*frac)
         # from FBetaScore import DifferentiableFBetaScore
-        k_fold = None
-        model_1.compile(loss=WeightedBinaryCrossentropy(weights=[0.01, 0.1]), optimizer=tf.keras.optimizers.Adam(),
-                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(beta=count[0]/count[1]*frac)])
+        model_1.compile(loss=WeightedBinaryCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
+                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score()])
     
     # tf.keras.utils.plot_model(model_1, f"{model_name}.png")
     # tf.keras.utils.model_to_dot(model_1).write(f"{model_name}.dot")
@@ -270,7 +273,7 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
     if save_callback:
         callbacks += [tf.keras.callbacks.ModelCheckpoint(log_dir, monitor='val_loss', save_best_only=True)]
     if best_callback:
-        callbacks += [GetBest(monitor='val_loss', verbose=0, mode='min')]
+        callbacks += [GetBest(monitor='val_f1_score', verbose=0, mode='max')]
     callbacks += [FilterModel(epochs=epochs, batch_size=batch_size)]
 
     
