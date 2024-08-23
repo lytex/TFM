@@ -38,6 +38,13 @@ import importlib
 import matplotlib as mpl
 import gc
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
+import pandas as pd
+from new_train import grouper
+from time import sleep
+import traceback
 mpl.use("agg")
 
 
@@ -123,12 +130,14 @@ def descarga_process_light_curve(
             results.append(process_func_continue(row))
     else:
         n_cpu = multiprocessing.cpu_count()*2
-        with ProcessPoolExecutor(max_workers=n_cpu) as executor:
-            futures = {}
-            results = []
-            failed = []
-            for group in list(grouper(df.iterrows(), 100))+failed:
-                for _, row in group:
+
+        executor = ProcessPoolExecutor(max_workers=n_cpu)
+        futures = {}
+        results = []
+        failed = []
+        for group in list(grouper(df.iterrows(), 100))+failed:
+            for _, row in group:
+                try:
                     future = executor.submit(process_func_continue_row, row,
                     sigma=sigma, sigma_upper=sigma_upper,
                     num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
@@ -137,19 +146,29 @@ def descarga_process_light_curve(
                     levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family, use_wavelet=use_wavelet,
                                              )
                     futures[future] = row
-                for future in as_completed(futures, timeout=30*60):
-                    try:
-                        print(future.exception())
-                    except:
-                        pass
-                    try:
-                        result, row = future.result()
-                        if type(result) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection):
-                            results.append(result)
-                        else:
-                            failed.append([result, row])
-                    except:
-                            pass
+                except BrokenProcessPool:
+                    executor.shutdown(wait=False)
+                    print("BrokenProcessPool, creating new ProcessPoolExecutor")
+                    executor = ProcessPoolExecutor(max_workers=n_cpu)
+            for future in tqdm(as_completed(futures, timeout=30*60)):
+                try:
+                    exc = future.exception()
+                    if exc is not None:
+                        print("multiprocessing exc 1:", exc)
+                        traceback.print_tb(exc.__traceback__)
+                except Exception as exc:
+                    print("multiprocessing exc 2:", exc)
+                    traceback.print_tb(exc.__traceback__)
+                try:
+                    result, row = future.result()
+                    if type(result) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection):
+                        results.append(result)
+                        failed.remove([None, row])
+                except Exception as exc:
+                    print("multiprocessing exc 3:", exc)
+                    traceback.print_tb(exc.__traceback__)
+
+        executor.shutdown()
 
     return results
 
