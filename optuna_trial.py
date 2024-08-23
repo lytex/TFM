@@ -48,17 +48,17 @@ if __name__ == "__main__":
     os.makedirs(path+file_path, exist_ok=True)
     print("trial folder created:", path+file_path)
 
-    # lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
-    # lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
+    lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
+    lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
 
     def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=None):
-        # global lightcurves_wavelet
-        # global lightcurves_no_wavelet
-        #
-        # if use_wavelet:
-        #     lightcurves = lightcurves_wavelet
-        # else:
-        #     lightcurves = lightcurves_no_wavelet
+        global lightcurves_wavelet
+        global lightcurves_no_wavelet
+
+        if use_wavelet:
+            lightcurves = lightcurves_wavelet
+        else:
+            lightcurves = lightcurves_no_wavelet
         #
         sigma = 20
         sigma_upper = 5
@@ -69,16 +69,16 @@ if __name__ == "__main__":
         num_durations = 4
         levels_global = 6
         levels_local = 3
+        wavelet_family = "sym5"
 
 
-        num_bins_global = trial.suggest_int("num_bins_global", 201, 20001, step=20)
-        bin_width_factor_global = 1 / trial.params.get("num_bins_global")
-        num_bins_local = trial.suggest_int("num_bins_local", trial.params.get("num_bins_global")//5, trial.params.get("num_bins_global")*100//5, step=4)
-        bin_width_factor_local = trial.suggest_float("bin_width_factor_local", 0.016, 1.6)
-        num_durations = trial.suggest_int("num_durations", 1, 6)
-
-        wavelet_family = trial.suggest_categorical("wavelet_family", [f"sym{N}" for N in range(2, 7)] + [f"db{N}" for N in range(1, 7)])
-        # wavelet_family = "sym5"
+        # num_bins_global = trial.suggest_int("num_bins_global", 201, 20001, step=20)
+        # bin_width_factor_global = 1 / trial.params.get("num_bins_global")
+        # num_bins_local = trial.suggest_int("num_bins_local", trial.params.get("num_bins_global")//5, trial.params.get("num_bins_global")*100//5, step=4)
+        # bin_width_factor_local = trial.suggest_float("bin_width_factor_local", 0.016, 1.6)
+        # num_durations = trial.suggest_int("num_durations", 1, 6)
+        #
+        # wavelet_family = trial.suggest_categorical("wavelet_family", [f"sym{N}" for N in range(2, 7)] + [f"db{N}" for N in range(1, 7)])
 
 
         binary_classification = True
@@ -100,8 +100,8 @@ if __name__ == "__main__":
         path = "all_data_2024-07-17/all_data_2024-07-17/"
         df_path = 'cumulative_2024.06.01_09.08.01.csv'
         use_download_cache = True
-        lightcurve_cache = False
-        lightcurves = None
+        lightcurve_cache = True
+        # lightcurves = None
 
         n_proc = int(multiprocessing.cpu_count()*1.25)
         parallel = True
@@ -207,7 +207,7 @@ if __name__ == "__main__":
 
         print(f"Wavelet list: global: {global_level_list}, local: {local_level_list}, use_wavelet: {use_wavelet}")
         objective_func = partial(objective, global_level_list=global_level_list, local_level_list=local_level_list, use_wavelet=use_wavelet)
-        study.optimize(objective_func, n_trials=100)
+        study.optimize(objective_func, n_trials=300)
 
         trial = study.best_trial
 
