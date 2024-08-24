@@ -43,6 +43,7 @@ import logging
 import sys
 from shutil import copyfile
 from functools import partial, reduce
+import numpy as np
 
 from optuna.artifacts import FileSystemArtifactStore
 from optuna.artifacts import upload_artifact
@@ -58,15 +59,28 @@ file_path = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 os.makedirs(path+file_path, exist_ok=True)
 print("trial folder created:", path+file_path)
 
-lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
-lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
+# lightcurves_wavelet = load_files_wrapper(path=path, use_wavelet=True)
+# lightcurves_no_wavelet = load_files_wrapper(path=path, use_wavelet=False)
 
 def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=None):
-    global lightcurves_wavelet
-    global lightcurves_no_wavelet
+    # global lightcurves_wavelet
+    # global lightcurves_no_wavelet
 
-    levels_global = 6
-    levels_local = 3
+
+    binary_classification = trial.suggest_categorical("binary_classification", [True, False])
+    use_wavelet = use_wavelet or not trial.params["binary_classification"]
+
+
+    num_bins_global = trial.suggest_int("num_bins_global", 201, 20001, step=20)
+    bin_width_factor_global = 1 / trial.params.get("num_bins_global")
+    num_bins_local = trial.suggest_int("num_bins_local", trial.params.get("num_bins_global")//5, trial.params.get("num_bins_global")*100//5, step=4)
+    bin_width_factor_local = trial.suggest_float("bin_width_factor_local", 0.016, 1.6)
+    num_durations = trial.suggest_int("num_durations", 1, 8)
+
+    wavelet_family = trial.suggest_categorical("wavelet_family", [f"sym{N}" for N in range(2, 7)] + [f"db{N}" for N in range(1, 7)])
+
+    levels_global = int(6 + np.log2(trial.params.get("num_bins_global")//2001))
+    levels_local = int(3 + np.log2(trial.params.get("num_bins_local")//201))
     global_level_list = trial.suggest_categorical("global_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
     local_level_list = trial.suggest_categorical("local_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
 
@@ -78,10 +92,10 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     else:
         use_wavelet = True
 
-    if use_wavelet:
-        lightcurves = lightcurves_wavelet
-    else:
-        lightcurves = lightcurves_no_wavelet
+    # if use_wavelet:
+    #     lightcurves = lightcurves_wavelet
+    # else:
+    #     lightcurves = lightcurves_no_wavelet
 
     sigma = 20
     sigma_upper = 5
@@ -110,7 +124,8 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     path = "all_data_2024-07-17/all_data_2024-07-17/"
     df_path = 'cumulative_2024.06.01_09.08.01.csv'
     use_download_cache = True
-    lightcurve_cache = True
+    lightcurve_cache = False
+    lightcurves = None
     
     n_proc = int(multiprocessing.cpu_count()*1.25)
     parallel = True
@@ -171,6 +186,7 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     result_df.to_csv(path+file_path+"/"+now+".csv", index=False)
     print("guardando csv en", path+file_path+"/"+now+".csv")
     print(os.listdir(path+file_path+"/"))
+    print("P_val : %f\nR_val : %f\nF1_val: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, Fβ_val))
     print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
     print(cm)
 
@@ -199,6 +215,7 @@ print("Best hyperparameters: {}".format(trial.params))
 from optuna.importance import PedAnovaImportanceEvaluator
 evaluator = PedAnovaImportanceEvaluator()
 evaluator.evaluate(study)
+print(optuna.importance.get_param_importances(study))
 copyfile(f"{study_name}.db", f"{path+file_path}/{study_name}.db")
 print("copiando db a ", f"{path+file_path}/{study_name}.db")
 print(os.listdir(path+file_path+"/"))
