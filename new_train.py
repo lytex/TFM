@@ -457,6 +457,12 @@ def main(sigma = 20, sigma_upper = 5,
     
     precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
     precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification)
+
+    import optuna_trial
+    from shutil import copyfile
+    copyfile(f"{optuna_trial.study_name}.db", f"{path+file_path}/{study_name}.db")
+    print("copiando db a ", f"{path+file_path}/{study_name}.db")
+    print(os.listdir(path+file_path+"/"))
     if return_lightcurves:
         return precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1, lightcurves
     else:

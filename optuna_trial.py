@@ -47,6 +47,8 @@ from functools import partial, reduce
 from optuna.artifacts import FileSystemArtifactStore
 from optuna.artifacts import upload_artifact
 from taguchi import generate_taguchi
+import warnings
+warnings.filterwarnings(action="ignore", category=UserWarning)
 
 
 base_path = "./all_data_2024-07-17/all_data_2024-07-17/"
@@ -65,6 +67,9 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     global lightcurves_wavelet
     global lightcurves_no_wavelet
 
+
+    binary_classification = trial.suggest_categorical("binary_classification", [True, False])
+    use_wavelet = use_wavelet or not trial.params["binary_classification"]
     levels_global = 6
     levels_local = 3
     global_level_list = trial.suggest_categorical("global_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
@@ -93,7 +98,6 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     wavelet_family = "sym5"
     
     
-    binary_classification = True
     k_fold = None
     epochs = 100
     batch_size = 128
@@ -189,7 +193,7 @@ storage = "sqlite:///{}.db".format(study_name)
 
 study = optuna.create_study(direction="maximize", storage=storage)
 
-study.optimize(objective, n_trials=300)
+study.optimize(objective, n_trials=None, gc_after_trial=True)
 
 trial = study.best_trial
 
