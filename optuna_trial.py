@@ -69,8 +69,8 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
 
 
     # binary_classification = trial.suggest_categorical("binary_classification", [True, False])
+    # use_wavelet = use_wavelet or not trial.params["binary_classification"]
     binary_classification = True
-    use_wavelet = use_wavelet or not trial.params["binary_classification"]
     levels_global = 6
     levels_local = 3
     global_level_list = trial.suggest_categorical("global_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
