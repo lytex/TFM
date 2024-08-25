@@ -494,7 +494,7 @@ def main(sigma = 20, sigma_upper = 5,
             y_candidate_sampled = y_candidate.argmax(axis=1)
 
         df_candidate = pd.DataFrame({"id": kepid_candidate, "class": num2class_vec(y_predict_sampled)})
-        df.to_csv(f"{path+file_path}/candidate.csv")
+        df_candidate.to_csv(f"{path+file_path}/candidate.csv")
 
     from shutil import copyfile
     study_name = "example-study"  # Unique identifier of the study.
