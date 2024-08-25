@@ -44,6 +44,8 @@ from concurrent.futures.process import BrokenProcessPool
 import pandas as pd
 import traceback
 mpl.use("agg")
+import os
+os.environ["TF_GPU_ALLOCATOR"] = "cuda_malloc_async"
 
 
 descarga = importlib.import_module("01_descarga")
@@ -417,12 +419,14 @@ def main(sigma = 20, sigma_upper = 5,
             download_dir=None,
             path = None,
             df_path = 'cumulative_2024.06.01_09.08.01.csv',
+            file_path="",
             use_download_cache = True,
             n_proc = 20,
             parallel = True,
             lightcurve_cache=True,
             return_lightcurves=False,
             lightcurves=None,
+            apply_candidates=False,
     ):
 
 
@@ -457,6 +461,40 @@ def main(sigma = 20, sigma_upper = 5,
     
     precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
     precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification)
+
+    if apply_candidates:
+        if use_wavelet:
+            lightcurves_canditate = [lc for lc in lightcurves if lc.headers["class"] == "CANDIDATE"]
+            lightcurves_candidate = sorted(lightcurves, key=lambda lc: lc.headers["Kepler_name"])
+            def set_class(lc):
+                lc.headers["class"] = ""
+                return lc
+            lightcurves_candidate = [set_class(lc) for lc in lightcurves_candidate]
+        else:
+            lightcurves_candidate = [lc for lc in lightcurves if lc.headers["koi_disposition"] == "CANDIDATE"]
+            lightcurves_candidate = sorted(lightcurves, key=lambda lc: lc.headers["kepoi_name"])
+            def set_class(lc):
+                lc.headers["koi_disposition"] = ""
+                return lc
+            lightcurves_candidate = [set_class(lc) for lc in lightcurves_candidate]
+
+        _, _, X_candidate, _, y_candidate, _, kepid_candidate, _, _, \
+            _ = get_data_split(lightcurves_candidate, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=1.0,
+                              global_level_list=global_level_list, local_level_list=local_level_list)
+        
+        num2class_vec = np.vectorize(num2class.get)
+        y_predict = model_1.predict(X_candidate)
+        # Escoger la clase que tiene mayor probabilidad
+        if binary_classification:
+            y_candidate_sampled = y_candidate
+            y_predict_sampled = (np.squeeze(y_predict) > 0.5).astype(int)
+        
+        else:
+            y_predict_sampled = y_predict.argmax(axis=1)
+            y_candidate_sampled = y_candidate.argmax(axis=1)
+
+        df_candidate = pd.DataFrame({"id": kepid_candidate, "class": num2class_vec(y_predict_sampled)})
+        df.to_csv(f"{path+file_path}/candidate.csv")
 
     from shutil import copyfile
     study_name = "example-study"  # Unique identifier of the study.
@@ -532,11 +570,14 @@ if __name__ == "__main__":
                 n_proc=n_proc,
                 parallel=parallel,
                 lightcurve_cache=lightcurve_cache,
+                apply_candidates=True,
         )
 
     ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
     print("P_val : %f\nR_val : %f\nF1_val: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, Fβ_val))
+    print(cm_val)
     ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
     print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
+    print(cm)
 
 # %%
