@@ -24,7 +24,7 @@ import seaborn as sns
 sns.set_theme(style="darkgrid")
 from optuna.importance import PedAnovaImportanceEvaluator
 from optuna_fast_fanova import FanovaImportanceEvaluator
-quantile = 0.4785
+quantile = 0.475
 evaluator = PedAnovaImportanceEvaluator(baseline_quantile=quantile)
 d = evaluator.evaluate(study)
 print(d)
@@ -63,7 +63,7 @@ for x in range(1, 4):
 # display(df.query('l2 > 0.002')[[f"global_level_list_{x}" for x in range(1, 7)]].astype(int).describe())
 
 
-num2 = df.query("F1_val!=0 and F1_val > 0.9")[ ["l1", "l2"] + [f"global_level_list_{x}" for x in range(1, 7)]]
+num2 = df.query("F1_val!=0 and F1_val > 0.95")[ ["l1", "l2"] + [f"global_level_list_{x}" for x in range(1, 7)]]
 num2["l2_bin"] = pd.cut(num2.l2, [0, 0.05, 0.10])
 grouped_df = num2.groupby("l2_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",
 # "global_level_list_1",
@@ -84,11 +84,10 @@ melted_df2 = grouped_df.melt(id_vars='l2_bin', var_name='Global_Level', value_na
 # Plotting
 plt.figure(figsize=(12, 6))
 sns.pointplot(data=melted_df, x='l2_bin', y='Count', hue='Global_Level',
-              dodge=0.4,  errwidth=1.5, capsize=0.2, palette='coolwarm',
+              dodge=0.2,  errwidth=1.5, capsize=0.2, palette='coolwarm',
               # errorbar=None,
              )
 
-num2 = df.query("F1_val!=0")[ ["l1", "l2"] + [f"global_level_list_{x}" for x in range(1, 7)]]
 num2["l1_bin"] = pd.cut(num2.l1, [0, 0.001, 0.10])
 grouped_df = num2.groupby("l1_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",
 # "global_level_list_1",
@@ -109,10 +108,60 @@ melted_df2 = grouped_df.melt(id_vars='l1_bin', var_name='Global_Level', value_na
 # Plotting
 plt.figure(figsize=(12, 6))
 sns.pointplot(data=melted_df, x='l1_bin', y='Count', hue='Global_Level',
-              dodge=0.4, errwidth=1.5, capsize=0.2, palette='coolwarm',
+              dodge=0.2, errwidth=1.5, capsize=0.2, palette='coolwarm',
               # errorbar=None,
              )
 
+
+
+num2 = df.query("F1_val!=0 and F1_val > 0.95")[ ["l1", "l2"] + [f"local_level_list_{x}" for x in range(1, 4)]]
+num2["l2_bin"] = pd.cut(num2.l2, [0, 0.05, 0.10])
+grouped_df = num2.groupby("l2_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",
+# "local_level_list_1",
+# "local_level_list_2",
+# "local_level_list_3",
+# "local_level_list_4",
+# "local_level_list_5",
+# "local_level_list_6",
+                                                                                    ])
+
+melted_df = grouped_df.melt(id_vars='l2_bin', var_name='local_Level', value_name='Count')
+
+grouped_df2 = num2.groupby("l2_bin").std().reset_index().drop(columns=["l1", "l2", 
+                                                                      ])
+
+melted_df2 = grouped_df.melt(id_vars='l2_bin', var_name='local_Level', value_name='Count')
+
+# Plotting
+plt.figure(figsize=(12, 6))
+sns.pointplot(data=melted_df, x='l2_bin', y='Count', hue='local_Level',
+              dodge=0.2,  errwidth=1.5, capsize=0.2, palette='coolwarm',
+              # errorbar=None,
+             )
+
+num2["l1_bin"] = pd.cut(num2.l1, [0, 0.001, 0.10])
+grouped_df = num2.groupby("l1_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",
+# "local_level_list_1",
+# "local_level_list_2",
+# "local_level_list_3",
+# "local_level_list_4",
+# "local_level_list_5",
+# "local_level_list_6",
+                                                                                    ])
+
+melted_df = grouped_df.melt(id_vars='l1_bin', var_name='local_Level', value_name='Count')
+
+grouped_df2 = num2.groupby("l1_bin").std().reset_index().drop(columns=["l1", "l2", 
+                                                                      ])
+
+melted_df2 = grouped_df.melt(id_vars='l1_bin', var_name='local_Level', value_name='Count')
+
+# Plotting
+plt.figure(figsize=(12, 6))
+sns.pointplot(data=melted_df, x='l1_bin', y='Count', hue='local_Level',
+              dodge=0.2, errwidth=1.5, capsize=0.2, palette='coolwarm',
+              # errorbar=None,
+             )
 
 
 
