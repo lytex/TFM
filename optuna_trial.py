@@ -74,7 +74,8 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     levels_global = 6
     levels_local = 3
     global_level_list = trial.suggest_categorical("global_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
-    local_level_list = trial.suggest_categorical("local_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
+    # local_level_list = trial.suggest_categorical("local_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
+    local_level_list = tuple()
 
     # global_level_list = (1, 5,)
     # local_level_list = (1, 3,)
@@ -102,12 +103,15 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     k_fold = None
     epochs = 100
     batch_size = 128
-    l1 = trial.suggest_float("l1", 0.0, 0.1)
+    # l1 = trial.suggest_float("l1", 0.0, 0.1)
+    l1 = 0.0
     l2 = trial.suggest_float("l2", 0.0, 0.1)
-    dropout = trial.suggest_float("dropout", 0.0, 0.3)
+    dropout = 0.0
+    # dropout = trial.suggest_float("dropout", 0.0, 0.3)
     
     β = 2.0
-    frac =  trial.suggest_float("frac", 0.1, 1.9)
+    frac = 1.43
+    # frac =  trial.suggest_float("frac", 0.1, 1.9)
     
     
     
