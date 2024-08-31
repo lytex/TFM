@@ -13,10 +13,14 @@
 #     name: tfm
 # ---
 
+# %% [markdown]
+# # 
+
 # %%
 import pandas as pd
 import optuna
 import warnings
+import numpy as np
 warnings.filterwarnings(action="ignore", category=UserWarning)
 study = optuna.study.load_study(study_name=None, storage="sqlite:///example-study.db")
 df2 = pd.read_csv('20240825-115903/all.csv')
@@ -49,11 +53,212 @@ def optuna_to_pandas(path):
 
 
 # %%
+import seaborn as sns
+import numpy as np
+# sns.catplot(data=df.assign(global_level_list=df.global_level_list.apply(str)).query("F1_val > 0.95"), x="global_level_list", y="l2")
+
+kv = {str(k): v for v, k in enumerate(np.unique(df.global_level_list))}
+vk = {v: str(k) for v, k in enumerate(np.unique(df.global_level_list))}
+enum = df.assign(global_level_list=df.assign(global_level_list=df.global_level_list.apply(str)).global_level_list.replace(to_replace=kv).apply(int)).query("F1_val > 0.95")
+
+fig = sns.kdeplot(
+    data=enum,
+    x="global_level_list",
+    y='l2',
+    thresh=0.01,
+    cmap='plasma',
+    fill=True,
+    bw_method=0.05,
+).get_figure()
+fig.suptitle('global_level_list vs l2', size=32, va='baseline', y=0.90)
+fig.axes[0].set_xlabel("")
+fig.axes[0].set_ylabel("")
+fig.axes[0].tick_params(labelsize=20)
+enum["l2_bin"] = pd.cut(enum.l2, [0, 0.03, 0.10])
+{k: [vk.get(v) for v in val] for k, val in enum.groupby("l2_bin").groups.items()}
+{k: [eval(vk[enum.loc[v].global_level_list]) for v in val] for k, val in enum.groupby("l2_bin").groups.items()}
+
+
+pd.concat(
+[
+pd.DataFrame({k: pd.Series([max(eval(vk[enum.loc[v].global_level_list]), default=0) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
+    .add_prefix("max_"),# .reset_index()
+pd.DataFrame({k: pd.Series([min(eval(vk[enum.loc[v].global_level_list]), default=0) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
+    .add_prefix("min_"),# .reset_index()
+pd.DataFrame({k: pd.Series([len(eval(vk[enum.loc[v].global_level_list])) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
+    .add_prefix("len_"),#.reset_index()
+], join='inner', axis=1)
+# {k: [v for v in val] for k, val in enum.groupby("l3_bin").groups.items()}
+# enum.iloc[5]
+
+
+# %%
+import matplotlib.pyplot as plt
+num2 = df.query("F1_val!=0 and F1_val > 0.95")[["l1", "l2", "global_level_list"]]
+num2["l2_bin"] = pd.cut(num2.l2, [0, 0.03, 0.10])
+num2["global_level_list"] = num2["global_level_list"].apply(lambda row: [int(x in row) for x in range(1, 7)])
+# num2["global_level_list_min"] = num2["global_level_list"].apply(lambda row: [int(x in row) for x in range(1, 7)])
+# num2["global_level_list_max"] = num2["global_level_list"].apply(lambda row: [int(x in row) for x in range(1, 7)])
+# num2["global_level_list_std"] = num2["global_level_list"].apply(lambda row: [int(x in row) for x in range(1, 7)])
+num2
+def explode_columns(row):
+    return pd.DataFrame(pd.DataFrame(row)[row.name].tolist(), index=row.index)
+
+def my_mean(row):
+    if row.name == "global_level_list":
+        temp = pd.DataFrame(pd.DataFrame(row).global_level_list.tolist(), index= row.index)
+        return pd.Series(temp.mean().to_list(), name=row.name)
+    else:
+        return row
+def my_min(row):
+    if row.name == "global_level_list":
+        temp = pd.DataFrame(pd.DataFrame(row).global_level_list.tolist(), index= row.index)
+        return pd.Series(temp.min().to_list(), name=row.name)
+    else:
+        return row
+def my_max(row):
+    if row.name == "global_level_list":
+        temp = pd.DataFrame(pd.DataFrame(row).global_level_list.tolist(), index= row.index)
+        return pd.Series(temp.max().to_list(), name=row.name)
+    else:
+        return row
+def my_std(row):
+    if row.name == "global_level_list":
+        temp = pd.DataFrame(pd.DataFrame(row).global_level_list.tolist(), index= row.index)
+        return pd.Series(temp.std().to_list(), name=row.name)
+    else:
+        return row
+
+grouped_df = num2.groupby("l2_bin").agg([my_mean, my_std]).rename(columns={"my_std": "std", "my_mean": "mean"}).reset_index()
+
+# melted_df = grouped_df
+# melted_df = grouped_df.melt(id_vars='l2_bin', var_name='Global_Level', value_name='Count')
+# grouped_df = num2.groupby("l2_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",])
+
+# melted_df = grouped_df.melt(id_vars='l2_bin', var_name='Global_Level', value_name='Count')
+
+# Plotting
+# import matplotlib.pyplot as plt
+# fig = plt.figure(figsize=(12, 12))
+# ax = sns.pointplot(data=melted_df, x='l2_bin', y='Count', hue='Global_Level',
+#               dodge=0.2,  errwidth=1.5, capsize=0.2, palette='coolwarm',
+#               # errorbar=None,
+#              )
+# plt.setp(ax.get_legend().get_texts(), fontsize='22') # for legend text
+# plt.setp(ax.get_legend().get_title(), fontsize='32') # for legend title
+# fig.suptitle("Global L2", size=32, va='baseline', y=0.90)
+# fig.axes[0].tick_params(labelsize=20)
+# fig.axes[0].set_xlabel("")
+# fig.axes[0].set_ylabel("")
+
+# grouped_df
+# grouped_df.global_level_list_mean.apply()
+# pd.DataFrame(grouped_df[["global_level_list_mean"]].tolist(),
+def group(grouped_df, key="l2_bin"):
+    aa = pd.merge(grouped_df[key].reset_index(),
+                  explode_columns(grouped_df.global_level_list["mean"]).add_prefix("global_level_list_").reset_index()
+                 ).drop(columns="index").reset_index()
+    return aa.groupby(key).agg(["mean"]).drop(columns="index").reset_index()
+def group(groped_df):
+    aa = pd.merge(pd.merge(
+        grouped_df["l2_bin"].reset_index(),
+        explode_columns(grouped_df.global_level_list["mean"]).add_prefix("global_level_list_").reset_index()
+        ).drop(columns="index").reset_index(),
+        explode_columns(grouped_df.global_level_list["std"]).add_prefix("global_level_list_std_").reset_index())
+    aa
+    bb = aa.groupby("l2_bin").agg(["mean", "std"]).drop(columns="index").reset_index()
+    for x in range(6):
+        bb[f"global_level_list_{x}"] = bb.loc[:, f"global_level_list_{x}"].assign(std=aa[f"global_level_list_std_{x}"])
+        bb = bb.drop(columns=f"global_level_list_std_{x}")
+    return bb
+
+grouped_df_old = grouped_df
+grouped_df = group(grouped_df)
+melted_df = grouped_df.melt(id_vars='l2_bin', var_name='Global_Level', value_name='Count')
+
+# Plotting
+fig = plt.figure(figsize=(12, 12))
+ax = sns.pointplot(data=melted_df, x='l2_bin', y='Count', hue='Global_Level',
+              dodge=0.2,  errwidth=1.0, capsize=0.2, palette='coolwarm',
+              # errorbar=None,
+             )
+plt.setp(ax.get_legend().get_texts(), fontsize='22') # for legend text
+plt.setp(ax.get_legend().get_title(), fontsize='32') # for legend title
+fig.suptitle("Global L2", size=32, va='baseline', y=0.90)
+fig.axes[0].tick_params(labelsize=20)
+fig.axes[0].set_xlabel("")
+fig.axes[0].set_ylabel("")
+melted_df
+
+# %%
+# explode_columns(num2.global_level_list), df.query("F1_val!=0 and F1_val > 0.95")["global_level_list"]
+# explode_columns(df.global_level_list)
+
+num2 = df.query("F1_val!=0 and F1_val > 0.95")
+num2["l2_bin"] = pd.cut(num2.l2, [0, 0.03, 0.10])
+num2.keys()
+# gdf = num2.groupby(["l2_bin"]).agg([my_mean, my_std]).rename(columns={"my_std": "std", "my_mean": "mean"}).reset_index()
+# gdf
+
+# %%
+# explode_columns(melted_df.Count)
+# melted_df2
+# grouped_df.global_level_list.apply(explode_columns, axis=0)
+explode_columns(grouped_df_old.global_level_list["mean"]).add_prefix("global_level_list_")
+# grouped_df_old
+aa = pd.merge(pd.merge(
+    grouped_df_old["l2_bin"].reset_index(),
+    explode_columns(grouped_df_old.global_level_list["mean"]).add_prefix("global_level_list_").reset_index()
+    ).drop(columns="index").reset_index(),
+    explode_columns(grouped_df_old.global_level_list["std"]).add_prefix("global_level_list_std_").reset_index())
+aa
+bb = aa.groupby("l2_bin").agg(["mean", "std"]).drop(columns="index").reset_index()
+bb
+# aa
+# aa[[f"global_level_list_std_{x}" for x in range(6)]]
+for x in range(6):
+    # print(bb.loc[:, f"global_level_list_{x}"].assign(std=aa[f"global_level_list_std_{x}"]))
+    # bb[f"global_level_list_{x}"]["std"] = aa[f"global_level_list_std_{x}"]
+    bb[f"global_level_list_{x}"] = bb.loc[:, f"global_level_list_{x}"].assign(std=aa[f"global_level_list_std_{x}"])
+    bb = bb.drop(columns=f"global_level_list_std_{x}")
+
+
+bb
+# melted_df
+# grouped_df
+
+# %%
+import matplotlib.pyplot as plt
 df.l2.hist(bins=50)
 plt.figure()
 df.query('l1 < 0.02').l1.hist(bins=50)
+# def mean_row(row):
+#     try:
+#         return np.mean(row)
+#     except ValueError:
+#         return pd.NA
+# def std_row(row):
+#     try:
+#         return np.std(row)
+#     except ValueError:
+#         return pd.NA
+# def max_row(row):
+#     try:
+#         return np.max(row)
+#     except ValueError:
+#         return 0
+# def min_row(row):
+#     try:
+#         return np.min(row)
+#     except ValueError:
+#         return 0
+        
 for x in range(1, 7):
     df[f"global_level_list_{x}"] = df[f"global_level_list"].apply(lambda row: x in row).astype(int)
+# df["global_level_list_mean"] = df[f"global_level_list"].apply(mean_row)
+# df["global_level_list_std"] = df[f"global_level_list"].apply(std_row)
+# df["global_level_list_max"] = df[f"global_level_list"].apply(max_row)
+# df["global_level_list_min"] = df[f"global_level_list"].apply(min_row)
 for x in range(1, 4):
     df[f"local_level_list_{x}"] = df[f"local_level_list"].apply(lambda row: x in row).astype(int)
 # from IPython.display import display
@@ -63,9 +268,10 @@ for x in range(1, 4):
 # display(df.query('l2 > 0.002')[[f"global_level_list_{x}" for x in range(1, 7)]].astype(int).describe())
 
 
-num2 = df.query("F1_val!=0 and F1_val > 0.95")[ ["l1", "l2"] + [f"global_level_list_{x}" for x in range(1, 7)]]
-num2["l2_bin"] = pd.cut(num2.l2, [0, 0.05, 0.10])
-grouped_df = num2.groupby("l2_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",
+num2 = df.query("F1_val!=0 and F1_val > 0.90")[ ["l1", "l2"] + [f"global_level_list_{x}" for x in range(1, 7)]]
+# num2 = df.query("F1_val!=0 and F1_val > 0.90")[ ["l1", "l2"] + [f"global_level_list_{x}" for x in ("mean", "std", "max", "min")]]
+num2["l2_bin"] = pd.cut(num2.l2, [0, 0.03, 0.10])
+grouped_df = num2.groupby("l2_bin").agg(["sum"]).reset_index().drop(columns=["l1", "l2",
 # "global_level_list_1",
 # "global_level_list_2",
 # "global_level_list_3",
@@ -76,20 +282,22 @@ grouped_df = num2.groupby("l2_bin").agg(["mean", "std"]).reset_index().drop(colu
 
 melted_df = grouped_df.melt(id_vars='l2_bin', var_name='Global_Level', value_name='Count')
 
-grouped_df2 = num2.groupby("l2_bin").std().reset_index().drop(columns=["l1", "l2", 
-                                                                      ])
-
-melted_df2 = grouped_df.melt(id_vars='l2_bin', var_name='Global_Level', value_name='Count')
-
 # Plotting
-plt.figure(figsize=(12, 6))
-sns.pointplot(data=melted_df, x='l2_bin', y='Count', hue='Global_Level',
+fig = plt.figure(figsize=(12, 12))
+ax = sns.pointplot(data=melted_df, x='l2_bin', y='Count', hue='Global_Level',
               dodge=0.2,  errwidth=1.5, capsize=0.2, palette='coolwarm',
               # errorbar=None,
              )
+plt.setp(ax.get_legend().get_texts(), fontsize='22') # for legend text
+plt.setp(ax.get_legend().get_title(), fontsize='32') # for legend title
+fig.suptitle("Global L2", size=32, va='baseline', y=0.90)
+fig.axes[0].tick_params(labelsize=20)
+fig.axes[0].set_xlabel("")
+fig.axes[0].set_ylabel("")
+fig.savefig("plot/optuna/group/global_l2.png")
 
 num2["l1_bin"] = pd.cut(num2.l1, [0, 0.001, 0.10])
-grouped_df = num2.groupby("l1_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",
+grouped_df = num2.groupby("l1_bin").agg(["sum"]).reset_index().drop(columns=["l1", "l2",
 # "global_level_list_1",
 # "global_level_list_2",
 # "global_level_list_3",
@@ -100,23 +308,26 @@ grouped_df = num2.groupby("l1_bin").agg(["mean", "std"]).reset_index().drop(colu
 
 melted_df = grouped_df.melt(id_vars='l1_bin', var_name='Global_Level', value_name='Count')
 
-grouped_df2 = num2.groupby("l1_bin").std().reset_index().drop(columns=["l1", "l2", 
-                                                                      ])
-
-melted_df2 = grouped_df.melt(id_vars='l1_bin', var_name='Global_Level', value_name='Count')
-
 # Plotting
-plt.figure(figsize=(12, 6))
-sns.pointplot(data=melted_df, x='l1_bin', y='Count', hue='Global_Level',
+fig = plt.figure(figsize=(12, 12))
+ax = sns.pointplot(data=melted_df, x='l1_bin', y='Count', hue='Global_Level',
               dodge=0.2, errwidth=1.5, capsize=0.2, palette='coolwarm',
               # errorbar=None,
              )
+plt.setp(ax.get_legend().get_texts(), fontsize='22') # for legend text
+plt.setp(ax.get_legend().get_title(), fontsize='32') # for legend title
+fig.suptitle("Global L1", size=32, va='baseline', y=0.90)
+fig.axes[0].tick_params(labelsize=20)
+fig.axes[0].set_xlabel("")
+fig.axes[0].set_ylabel("")
+fig.savefig("plot/optuna/group/global_l1.png")
 
 
 
-num2 = df.query("F1_val!=0 and F1_val > 0.95")[ ["l1", "l2"] + [f"local_level_list_{x}" for x in range(1, 4)]]
-num2["l2_bin"] = pd.cut(num2.l2, [0, 0.05, 0.10])
-grouped_df = num2.groupby("l2_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",
+
+num2 = df.query("F1_val!=0 and F1_val > 0.90")[ ["l1", "l2"] + [f"local_level_list_{x}" for x in range(1, 4)]]
+num2["l2_bin"] = pd.cut(num2.l2, [0, 0.03, 0.10])
+grouped_df = num2.groupby("l2_bin").agg(["sum"]).reset_index().drop(columns=["l1", "l2",
 # "local_level_list_1",
 # "local_level_list_2",
 # "local_level_list_3",
@@ -133,14 +344,22 @@ grouped_df2 = num2.groupby("l2_bin").std().reset_index().drop(columns=["l1", "l2
 melted_df2 = grouped_df.melt(id_vars='l2_bin', var_name='local_Level', value_name='Count')
 
 # Plotting
-plt.figure(figsize=(12, 6))
-sns.pointplot(data=melted_df, x='l2_bin', y='Count', hue='local_Level',
+fig = plt.figure(figsize=(12, 12))
+ax = sns.pointplot(data=melted_df, x='l2_bin', y='Count', hue='local_Level',
               dodge=0.2,  errwidth=1.5, capsize=0.2, palette='coolwarm',
               # errorbar=None,
              )
 
+plt.setp(ax.get_legend().get_texts(), fontsize='22') # for legend text
+plt.setp(ax.get_legend().get_title(), fontsize='32') # for legend title
+fig.suptitle("Local L2", size=32, va='baseline', y=0.90)
+fig.axes[0].tick_params(labelsize=20)
+fig.axes[0].set_xlabel("")
+fig.axes[0].set_ylabel("")
+fig.savefig("plot/optuna/group/local_l2.png")
+
 num2["l1_bin"] = pd.cut(num2.l1, [0, 0.001, 0.10])
-grouped_df = num2.groupby("l1_bin").agg(["mean", "std"]).reset_index().drop(columns=["l1", "l2",
+grouped_df = num2.groupby("l1_bin").agg(["sum"]).reset_index().drop(columns=["l1", "l2",
 # "local_level_list_1",
 # "local_level_list_2",
 # "local_level_list_3",
@@ -157,12 +376,19 @@ grouped_df2 = num2.groupby("l1_bin").std().reset_index().drop(columns=["l1", "l2
 melted_df2 = grouped_df.melt(id_vars='l1_bin', var_name='local_Level', value_name='Count')
 
 # Plotting
-plt.figure(figsize=(12, 6))
-sns.pointplot(data=melted_df, x='l1_bin', y='Count', hue='local_Level',
+fig = plt.figure(figsize=(12, 12))
+ax = sns.pointplot(data=melted_df, x='l1_bin', y='Count', hue='local_Level',
               dodge=0.2, errwidth=1.5, capsize=0.2, palette='coolwarm',
               # errorbar=None,
              )
 
+plt.setp(ax.get_legend().get_texts(), fontsize='22') # for legend text
+plt.setp(ax.get_legend().get_title(), fontsize='32') # for legend title
+fig.suptitle("Local L1", size=32, va='baseline', y=0.90)
+fig.axes[0].tick_params(labelsize=20)
+fig.axes[0].set_xlabel("")
+fig.axes[0].set_ylabel("")
+fig.savefig("plot/optuna/group/local_l1.png")
 
 
 # %%
@@ -201,20 +427,26 @@ df = optuna_to_pandas("example-study.db")
 df['global_level_list'] = df['global_level_list'].apply(tuple)
 df['local_level_list'] = df['local_level_list'].apply(tuple)
 
+# import graycode
+
 if numeric_level_list:
     # df['global_level_list'] = df['global_level_list'].apply(lambda row: sum([2**i for i in row]))
     # df['local_level_list'] = df['local_level_list'].apply(lambda row: sum([2**i for i in row]))
-    # df['global_level_list'] = df['global_level_list'].apply(lambda row: len(row))
-    # df['local_level_list'] = df['local_level_list'].apply(lambda row: len(row))
+    df['global_level_list'] = df['global_level_list'].apply(lambda row: len(row))
+    df['local_level_list'] = df['local_level_list'].apply(lambda row: len(row))
     # Numero de puntos por cada uno
     df['global_level_list_original'] = df['global_level_list']
     df['local_level_list_original'] = df['local_level_list']
-    df['global_level_list'] = df['global_level_list'].apply(lambda row: sum([2**(6-i) for i in row]))
-    df['local_level_list'] = df['local_level_list'].apply(lambda row: sum([2**(3-i) for i in row]))
+    # df['global_level_list'] = df['global_level_list'].apply(lambda row: sum([2**(6-i) for i in row]))
+    # df['local_level_list'] = df['local_level_list'].apply(lambda row: sum([2**(3-i) for i in row]))
+    # df['global_level_list'] = df['global_level_list'].apply(lambda row: int(1 in row))
+    # df['local_level_list'] = df['local_level_list'].apply(lambda row: int(1 in row))
+    # df['global_level_list'] = df['global_level_list'].apply(lambda row: graycode.tc_to_gray_code(sum([2**i for i in row])))
+    # df['local_level_list'] = df['local_level_list'].apply(lambda row: graycode.tc_to_gray_code(sum([2**i for i in row])))
+    
     # df['global_level_list'] = df['global_level_list'].apply(lambda row: int(str(row).replace(",", "").replace(" ", "").replace("()", "0").replace("(", "").replace(")", "")))
     # df['local_level_list'] = df['local_level_list'].apply(lambda row: int(str(row).replace(",", "").replace(" ", "").replace("()", "0").replace("(", "").replace(")", "")))
-df_red = df.loc[:, (df != df.iloc[0]).any()][['F1_val',  'global_level_list', 'local_level_list', 'l1',
-       'l2', 'dropout', 'frac',  ]]
+df_red = df.loc[:, (df != df.iloc[0]).any()]
 # df[[
 #     'global_level_list',
 #        'local_level_list', 'l1', 'l2', 'dropout', 
@@ -237,13 +469,25 @@ import matplotlib.pyplot as plt
 
 if "global_level_list" not in df.keys():
     shallue = True
-    df_red = df.loc[:, (df != df.iloc[0]).any()][['F1_val', 'l1',
-           'l2', 'dropout', 'frac',  ]]
+    df_red = df.loc[:, (df != df.iloc[0]).any()]
 else:
     shallue = False
-num = df_red.query("F1_val!=0 and F1_val > 0.9 and l1 < 0.06")
+
+# for x in range(1, 7):
+#     df_red[f"global_level_list_{x}"] = df_red[f"global_level_list_original"].apply(lambda row: x in row).astype(int)
+# for x in range(1, 4):
+#     df_red[f"local_level_list_{x}"] = df_red[f"local_level_list_original"].apply(lambda row: x in row).astype(int)
+
+num = df_red.query("F1_val!=0 and F1_val > 0.95 and l1 < 0.06")
 pd.plotting.scatter_matrix(num, alpha=0.2, figsize=(32, 18), hist_kwds={"bins": 50})
+plt.savefig('filename.svg', format='svg')
+plt.close('all')
 None
+
+# from IPython.display import display
+num = num[['F1_val', 'l1', 'l2', 'dropout', 'frac',  ] ]
+# [f"global_level_list_{x}" for x in range(1, 7)] + [f"local_level_list_{x}" for x in range(1, 4)]]
+
 for key in num.keys():
     if key == 'F1_val':
         continue
@@ -276,7 +520,7 @@ for key in num.keys():
     # fig.axes[1].tick_params(labelsize=20)
     
     # ax = num.plot.scatter(x=key, y='F1_val')
-    
+
 num
 
 # %%
@@ -426,6 +670,9 @@ plt.show()
 
 
 # %%
-optuna_to_pandas("example-study.db").sort_values(by='F1_val', ascending=False)
+optuna_to_pandas("example-study.db").sort_values(by='F1_val', ascending=False).iloc[0]
+# df2 = pd.read_csv('20240825-115903/all.csv')
+
+# pd.plotting.scatter_matrix(df2.query("F1_val > 0.9").sort_values(by="F1_val")[['F1_val', 'F1']], alpha=0.2, figsize=(32, 18), hist_kwds={"bins": 50})
 
 # %%
