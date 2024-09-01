@@ -537,7 +537,7 @@ def main(sigma = 20, sigma_upper = 5,
 
     if apply_candidates:
         if use_wavelet:
-            lightcurves_canditate = [lc for lc in lightcurves if lc.headers["class"] == "CANDIDATE"]
+            lightcurves_candidate = [lc for lc in lightcurves if lc.headers["class"] == "CANDIDATE"]
             lightcurves_candidate = sorted(lightcurves_candidate, key=lambda lc: lc.headers["Kepler_name"])
             def set_class(lc):
                 lc.headers["class"] = ""
