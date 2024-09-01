@@ -346,7 +346,7 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
     
     history_1 = history_1.reset_index().rename(columns={"index": "epoch"})
     
-    return model_1, history_1, num2class, X_val, y_val, X_test, y_test
+    return model_1, history_1, num2class, X_val, y_val, X_test, y_test, kepid_test
 
 
 # %%
@@ -354,7 +354,7 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
 #                                                    use_wavelet=use_wavelet, binary_classification=binary_classification,
 #                                                    k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size)
     
-def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classification=False, plot=False):
+def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classification=False, plot=False, save_failures=False):
     num2class_vec = np.vectorize(num2class.get)
     y_predict = model_1.predict(X_test)
     # Escoger la clase que tiene mayor probabilidad
@@ -370,11 +370,72 @@ def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classificatio
     cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sampled), labels=[str(v) for v in num2class.values()])
     if plot:
         ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
+        
+        from sklearn.metrics import precision_recall_curve, auc
+        # Calculate precision and recall for various thresholds
+        precision, recall, thresholds = precision_recall_curve(y_test_sampled, np.squeeze(y_predict))
+        # Calculate the Area Under the Curve (AUC)
+        auc_score = auc(recall, precision)
+        print("auc_score", auc_score)
+        
+        # Plot the Precision-Recall curve
+        plt.figure(figsize=(8, 6))
+        plt.plot(recall, precision, color='blue', label=f'PR curve (AUC = {auc_score:.2f})')
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.title('Precision-Recall Curve')
+        plt.legend(loc="lower left")
+        plt.grid(True)
+        plt.savefig("plot/results/ROC_"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.show()
+    if save_failures:
+        wrong = y_predict_sampled != y_test_sampled
+        
+        
+        download_dir="data3/"
+        import importlib  
+        descarga = importlib.import_module("01_descarga")
+        process_light_curve = descarga.process_light_curve
+
+        df_path = 'cumulative_2024.06.01_09.08.01.csv'
+        df = pd.read_csv(df_path ,skiprows=144)
+        df_kepid = pd.DataFrame({"kepid": kepid_test[wrong], "predicted": y_predict_sampled[wrong], "true": y_test_sampled[wrong]})
+        df_wrong = pd.merge(df_kepid, df, how="inner", on="kepid")
     
+        def process_func_title(row):
+            title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}"
+            return process_func(row, title=title)
+        
+        def process_func_continue(row, title):
+            try:
+                print(title)
+                return process_func(row, title)
+            except Exception as e:
+                print(f"Exception on {row.kepid}")
+                import traceback
+                traceback.print_exc()
+                return e
+        
+        results = []
+        for _, row in tqdm(df_wrong.iterrows(), total=len(df_wrong)):
+            try:
+                results.append(process_light_curve(row, title=f" Predicho: {num2class[row.predicted]} Real: {num2class[row.true]}",
+                                                   levels_global=6, levels_local=3, wavelet_family="sym5", sigma=20, sigma_upper=5,
+                                                   plot=True, plot_comparative=False, save=False, path=path, download_dir=download_dir, plot_folder=log_dir, use_download_cache=True))
+            except Exception as e:
+                print(f"Exception on {row.kepid}")
+                import traceback
+                traceback.print_exc()
+                results.append(e)
+
+
+
     precision = cm[0][0]/(cm[0][0] + cm[1][0])
     recall = cm[0][0]/(cm[0][0] + cm[0][1])
     F1 = 2*(precision*recall)/(precision+recall)
     Fβ = (1+β**2)*(precision*recall)/(β**2*precision+recall)
+
+    
     return precision, recall, F1, Fβ, cm, num2class
 
 # precision, recall, F1, Fβ, cm = get_metrics(num2class, X_test, y_test, model_1, β=2.0)
@@ -427,8 +488,8 @@ def main(sigma = 20, sigma_upper = 5,
             return_lightcurves=False,
             lightcurves=None,
             apply_candidates=False,
+           model=None,
     ):
-
 
     if lightcurves is None:
         if lightcurve_cache:
@@ -444,38 +505,47 @@ def main(sigma = 20, sigma_upper = 5,
                 use_wavelet=use_wavelet, parallel=parallel
             )
             lightcurves = [x for x in results if type(x) in (LightCurveWaveletGlobalLocalCollection, LightCurveShallueCollection)]
-    
         
-    lightcurves = [lc for lc in lightcurves if lc is not None]
-    
-    model_1_lazy = lambda : get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac,  test_size=test_size,
-                                         global_level_list=global_level_list, local_level_list=local_level_list,
-                                        l1=l1, l2=l2, dropout=dropout,
-                                        num_bins_global=num_bins_global,
-                                        num_bins_local=num_bins_local)
+            
+        lightcurves = [lc for lc in lightcurves if lc is not None]
 
-    if k_fold is None:
-        model_1, history_1, num2class, X_val, y_val, X_test, y_test = train_model(model_1_lazy, lightcurves,
-                                                           use_wavelet=use_wavelet, binary_classification=binary_classification,
-                                                           k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
-    
+        if model is None:
         
-        precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification)
-    else:
-        precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification)
-    precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
+            model_1_lazy = lambda : get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac,  test_size=test_size,
+                                                 global_level_list=global_level_list, local_level_list=local_level_list,
+                                                l1=l1, l2=l2, dropout=dropout,
+                                                num_bins_global=num_bins_global,
+                                                num_bins_local=num_bins_local)
+        
+            if k_fold is None:
+                model_1, history_1, num2class, X_val, y_val, X_test, y_test, recall_val = train_model(model_1_lazy, lightcurves,
+                                                                   use_wavelet=use_wavelet, binary_classification=binary_classification,
+                                                                   k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
+            
+                
+                precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
+            else:
+                # TODO añadir en el caso de k-fold
+                precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
+            precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=True)
+        
+            model_path = "logs/models/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".keras"
+            model_1.save(model_path)
+
+        else:
+            model_1 = model
 
     if apply_candidates:
         if use_wavelet:
             lightcurves_canditate = [lc for lc in lightcurves if lc.headers["class"] == "CANDIDATE"]
-            lightcurves_candidate = sorted(lightcurves, key=lambda lc: lc.headers["Kepler_name"])
+            lightcurves_candidate = sorted(lightcurves_candidate, key=lambda lc: lc.headers["Kepler_name"])
             def set_class(lc):
                 lc.headers["class"] = ""
                 return lc
             lightcurves_candidate = [set_class(lc) for lc in lightcurves_candidate]
         else:
             lightcurves_candidate = [lc for lc in lightcurves if lc.headers["koi_disposition"] == "CANDIDATE"]
-            lightcurves_candidate = sorted(lightcurves, key=lambda lc: lc.headers["kepoi_name"])
+            lightcurves_candidate = sorted(lightcurves_candidate, key=lambda lc: lc.headers["kepoi_name"])
             def set_class(lc):
                 lc.headers["koi_disposition"] = ""
                 return lc
@@ -504,6 +574,8 @@ def main(sigma = 20, sigma_upper = 5,
     copyfile(f"{study_name}.db", f"{path+file_path}/{study_name}.db")
     print("copiando db a ", f"{path+file_path}/{study_name}.db")
     print(os.listdir(path+file_path+"/"))
+    if model:
+        return df_candidate
     if return_lightcurves:
         return precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1, lightcurves
     else:
@@ -577,18 +649,17 @@ if __name__ == "__main__":
     import datetime
     # %matplotlib inline
     print("val_auc", history_1.sort_values(by="val_f1_score", ascending=False).iloc[0].val_auc)
+
     ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
     plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
-    print("P_val : %f\nR_val : %f\nF1_val: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, Fβ_val))
+    print("P_val : %f\nR_val : %f\nF1_val: %f\naccuracy: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, cm_val.trace()/cm_val.sum(), Fβ_val))
+    # pd.DataFrame({"AUC": 0, "Accuracy": cm_val.trace()/cm_val.sum(), "Precision": precision_val, "Recall": recall_val, "F1": })
+
     print(cm_val)
     ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
     plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
-    print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
+    print("P : %f\nR : %f\nF1: %f\naccuracy: %f\nFβ: %f" % (precision, recall, F1, cm.trace()/cm.sum(), Fβ))
     print(cm)
-
-# %%
-print("val_auc", history_1.sort_values(by="val_f1_score", ascending=False).iloc[0].val_auc)
-# history_1.iloc[-1]
 
 # %%
 if __name__ == "__main__":
@@ -623,7 +694,7 @@ if __name__ == "__main__":
         plt.ylabel('accuracy')
         plt.xlabel('epoch')
         plt.legend(['train', 'val'], loc='upper left')
-        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.savefig("plot/results/accuracy.png")
         plt.show()
 
         # summarize history_1 for precision
@@ -634,7 +705,7 @@ if __name__ == "__main__":
         plt.ylabel('precision')
         plt.xlabel('epoch')
         plt.legend(['train', 'val'], loc='upper left')
-        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.savefig("plot/results/precision.png")
         plt.show()
 
         # summarize history_1 for recall
@@ -645,7 +716,7 @@ if __name__ == "__main__":
         plt.ylabel('recall')
         plt.xlabel('epoch')
         plt.legend(['train', 'val'], loc='upper left')
-        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.savefig("plot/results/recall.png")
         plt.show()
 
         plt.plot(history_1['loss'])
@@ -655,6 +726,7 @@ if __name__ == "__main__":
         plt.xlabel('epoch')
         plt.legend(['train', 'val'], loc='upper left')
         plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.savefig("plot/results/loss.png")
         plt.show()
 
 
@@ -665,7 +737,7 @@ if __name__ == "__main__":
         plt.ylabel('f1_score')
         plt.xlabel('epoch')
         plt.legend(['train', 'val'], loc='upper left')
-        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.savefig("plot/results/f1_score.png")
         plt.show()
 
 
@@ -677,6 +749,7 @@ if __name__ == "__main__":
         plt.xlabel('epoch')
         plt.legend(['train', 'val'], loc='upper left')
         plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.savefig("plot/results/auc.png")
         plt.show()
 
 
@@ -686,5 +759,7 @@ if __name__ == "__main__":
         plt.ylabel('recall')
         plt.xlabel('epoch')
         plt.legend(['val precision', 'val recall'], loc='lower center')
-        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.savefig("plot/results/precision_vs_recall.png")
         plt.show()
+
+# %%

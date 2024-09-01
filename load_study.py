@@ -670,9 +670,17 @@ plt.show()
 
 
 # %%
-optuna_to_pandas("example-study.db").sort_values(by='F1_val', ascending=False).iloc[0]
-# df2 = pd.read_csv('20240825-115903/all.csv')
+df3 = optuna_to_pandas("example-study.db").sort_values(by='F1_val', ascending=False)
+# print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df3.sort_values(by="F1_val", ascending=False).iloc[0].items()]))
+df2 = pd.read_csv('20240825-115903/all.csv')
+print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df2.sort_values(by="F1_val", ascending=False).iloc[0, 0:22].items()]))
+# print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df3.sort_values(by="F1_val", ascending=False).iloc[0].items()]))
+df2.sort_values(by="F1_val", ascending=False).F1
 
-# pd.plotting.scatter_matrix(df2.query("F1_val > 0.9").sort_values(by="F1_val")[['F1_val', 'F1']], alpha=0.2, figsize=(32, 18), hist_kwds={"bins": 50})
+# %%
+# %pdb
+# list(df3.sort_values(by="F1_val", ascending=False).iloc[0].items())
+list(df2.sort_values(by="F1_val", ascending=False).iloc[0, 0:22].items())
+print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df3.sort_values(by="F1_val", ascending=False).iloc[0].items()]))
 
 # %%

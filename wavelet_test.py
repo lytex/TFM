@@ -236,3 +236,38 @@ axs[3].legend()
 # Adjust layout and display the plot
 plt.tight_layout()
 plt.show()
+
+# %%
+
+# %%
+import pywt
+import numpy as np
+import matplotlib.pyplot as plt
+import datetime
+
+for wavelet_family in sorted([f"sym{N}" for N in range(2, 10)] + [f"db{N}" for N in range(1, 10)], key=lambda x: x[-1]):
+    wavelet = pywt.Wavelet(wavelet_family)
+    
+    # Get the scaling filter
+    scaling_filter = wavelet.dec_lo
+    
+    # Compute the FFT of the scaling filter
+    fft = np.fft.fft(scaling_filter, 1024)
+    
+    # Calculate the phase response
+    phase = np.unwrap(np.angle(fft))
+    
+    # Create frequency array
+    freq = np.linspace(0, 0.5, len(phase)//2)
+    linear_phase = np.linspace(0, phase[len(freq)-1], len(freq))
+    
+    # Plot the phase response
+    plt.figure(figsize=(10, 6))
+    plt.plot(freq, phase[:len(freq)])
+    plt.plot(freq, linear_phase, '--', label='Linear Phase Reference')
+    plt.title(f'Phase Response of {wavelet_family} Wavelet')
+    plt.xlabel('Normalized Frequency')
+    plt.ylabel('Phase (radians)')
+    plt.grid(True)
+    plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+    plt.show()
