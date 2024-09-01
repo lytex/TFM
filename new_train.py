@@ -258,7 +258,7 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
     if use_wavelet:
         if binary_classification:
             model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
-                            metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(),])
+                            metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(), tf.keras.metrics.AUC(curve='PR')])
         else:
             
             # model_1.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(),
@@ -453,14 +453,17 @@ def main(sigma = 20, sigma_upper = 5,
                                         l1=l1, l2=l2, dropout=dropout,
                                         num_bins_global=num_bins_global,
                                         num_bins_local=num_bins_local)
-    
-    model_1, history_1, num2class, X_val, y_val, X_test, y_test = train_model(model_1_lazy, lightcurves,
-                                                       use_wavelet=use_wavelet, binary_classification=binary_classification,
-                                                       k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
 
+    if k_fold is None:
+        model_1, history_1, num2class, X_val, y_val, X_test, y_test = train_model(model_1_lazy, lightcurves,
+                                                           use_wavelet=use_wavelet, binary_classification=binary_classification,
+                                                           k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
     
+        
+        precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification)
+    else:
+        precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification)
     precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification)
-    precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification)
 
     if apply_candidates:
         if use_wavelet:
@@ -515,32 +518,29 @@ if __name__ == "__main__":
     from multiprocessing import set_start_method
     set_start_method("spawn", force=True)
 
-
     sigma = 20
     sigma_upper = 5
     num_bins_global = 2001
-    bin_width_factor_global = 1 / 2001
+    bin_width_factor_global = 0.0004997501249375
     num_bins_local = 201
     bin_width_factor_local = 0.16
     num_durations = 4
     levels_global = 6
     levels_local = 3
-    wavelet_family = "sym5"
-    
-    
+    wavelet_family = 'sym5'
     use_wavelet = True
     binary_classification = True
     k_fold = None
-    global_level_list = (1, 5,)
-    local_level_list = (1, 3,)
-    epochs = 10
+    global_level_list = (1, 3)
+    local_level_list = (1,)
+    l1 = 0.0031991408399097
+    l2 = 0.0033802040346427
+    dropout = 0.0065163715298307
+    epochs = 100
     batch_size = 128
-    l1 = 0.00
-    l2 = 0.0
-    dropout = 0.0
+    frac = 0.9342089267108736
     β = 2.0
-    frac = 0.5 # fracción del porcentaje relativo de datos de cada clase que multiplica a la categorical_crossentropy, o fracción de beta
-    
+
     
     
     download_dir="data3/"
@@ -573,11 +573,118 @@ if __name__ == "__main__":
                 apply_candidates=True,
         )
 
+
+    import datetime
+    # %matplotlib inline
+    print("val_auc", history_1.sort_values(by="val_f1_score", ascending=False).iloc[0].val_auc)
     ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
+    plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
     print("P_val : %f\nR_val : %f\nF1_val: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, Fβ_val))
     print(cm_val)
     ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
+    plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
     print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
     print(cm)
 
 # %%
+print("val_auc", history_1.sort_values(by="val_f1_score", ascending=False).iloc[0].val_auc)
+# history_1.iloc[-1]
+
+# %%
+if __name__ == "__main__":
+    # %matplotlib inline
+    import datetime
+    if not binary_classification:
+    # summarize history_1 for loss
+        plt.plot(history_1['loss'])
+        plt.plot(history_1['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        
+        
+        plt.plot(history_1['f1_score'])
+        plt.plot(history_1['val_f1_score'])
+        plt.title('model f1_score')
+        plt.ylabel('f1_score')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        
+    else:
+        best_index =  history_1.sort_values(by="val_f1_score", ascending=False).index[0]
+        # summarize history_1 for accuracy
+        plt.plot(history_1['accuracy'])
+        plt.plot(history_1['val_accuracy'])
+        plt.plot(history_1['epoch'].iloc[best_index], history_1['val_accuracy'].iloc[best_index], 'k+', markersize=12)
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.show()
+
+        # summarize history_1 for precision
+        plt.plot(history_1['precision'])
+        plt.plot(history_1['val_precision'])
+        plt.plot(history_1['epoch'].iloc[best_index], history_1['val_precision'].iloc[best_index], 'k+', markersize=12)
+        plt.title('model precision')
+        plt.ylabel('precision')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.show()
+
+        # summarize history_1 for recall
+        plt.plot(history_1['recall'])
+        plt.plot(history_1['val_recall'])
+        plt.plot(history_1['epoch'].iloc[best_index], history_1['val_recall'].iloc[best_index], 'k+', markersize=12)
+        plt.title('model recall')
+        plt.ylabel('recall')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.show()
+
+        plt.plot(history_1['loss'])
+        plt.plot(history_1['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.show()
+
+
+        plt.plot(history_1['f1_score'])
+        plt.plot(history_1['val_f1_score'])
+        plt.plot(history_1['epoch'].iloc[best_index], history_1['val_f1_score'].iloc[best_index], 'k+', markersize=12)
+        plt.title('model f1_score')
+        plt.ylabel('f1_score')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.show()
+
+
+        plt.plot(history_1['auc'])
+        plt.plot(history_1['val_auc'])
+        plt.plot(history_1['epoch'].iloc[best_index], history_1['val_auc'].iloc[best_index], 'k+', markersize=12)
+        plt.title('model auc')
+        plt.ylabel('auc')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.show()
+
+
+        plt.plot(history_1['val_precision'])
+        plt.plot(history_1['val_recall'])
+        plt.title('precision vs recall')
+        plt.ylabel('recall')
+        plt.xlabel('epoch')
+        plt.legend(['val precision', 'val recall'], loc='lower center')
+        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.show()
