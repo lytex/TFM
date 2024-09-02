@@ -322,10 +322,18 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
         _, X_val, X_test, y_val, y_test, _, kepid_test, kepid_val, num2class, \
             _ = get_data_split(lightcurves_val, binary_classification=binary_classification, use_wavelet=use_wavelet, test_size=0.5,
                                global_level_list=global_level_list, local_level_list=local_level_list)
+        
+        print("y_train:", y_train.shape, np.where(y_train == 0)[0].shape, np.where(y_train == 1)[0].shape)
+        print("y_val:", y_val.shape, np.where(y_val == 0)[0].shape, np.where(y_val == 1)[0].shape)
+        print("y_test:", y_test.shape, np.where(y_test == 0)[0].shape, np.where(y_test == 1)[0].shape)
+        print("total:", y_train.shape[0]+y_val.shape[0]+y_test.shape[0],
+                  np.where(y_train == 0)[0].shape[0] +np.where(y_test == 0)[0].shape[0] + np.where(y_test == 0)[0].shape[0],
+                  np.where(y_train == 1)[0].shape[0] +np.where(y_test == 1)[0].shape[0] + np.where(y_test == 1)[0].shape[0],
+             )
+        print("num2class:", num2class)
         temp = model_1.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_val, y_val),
                                 callbacks=callbacks)
         history_1 = history_1.append(pd.DataFrame(temp.history))
-    
     else:
         lightcurves_kfold, lightcurves_val = train_test_split(lightcurves, test_size=test_size, shuffle=True)
         _, X_val, X_test, y_val, y_test, _, kepid_test, kepid_val, num2class, \
@@ -650,23 +658,28 @@ if __name__ == "__main__":
     # %matplotlib inline
     print("val_auc", history_1.sort_values(by="val_f1_score", ascending=False).iloc[0].val_auc)
 
-    ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
-    plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+    ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in sorted(num2class.values())], reverse=True).plot(xticks_rotation='vertical')
+    plt.subplots_adjust(left=0.05, bottom=0.15)
+    plt.savefig("plot/results/cm_val.png")
     print("P_val : %f\nR_val : %f\nF1_val: %f\naccuracy: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, cm_val.trace()/cm_val.sum(), Fβ_val))
-    # pd.DataFrame({"AUC": 0, "Accuracy": cm_val.trace()/cm_val.sum(), "Precision": precision_val, "Recall": recall_val, "F1": })
 
     print(cm_val)
-    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
-    plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in sorted(num2class.values())], reverse=True).plot(xticks_rotation='vertical')
+    plt.subplots_adjust(left=0.05, bottom=0.15)
+    plt.savefig("plot/results/cm.png")
     print("P : %f\nR : %f\nF1: %f\naccuracy: %f\nFβ: %f" % (precision, recall, F1, cm.trace()/cm.sum(), Fβ))
     print(cm)
+    print(pd.DataFrame({"dataset": ["Validación" , "Test", ] ,"AUC": [auc_val, auc], "Accuracy": [cm_val.trace()/cm_val.sum(), cm_val.trace()/cm_val.sum()],
+                  "Precision": [precision_val, precision], "Recall": [recall_val, recall], "F1": [F1_val, F1]}).to_latex(index=False))
+    history_1_old = history_1
 
 # %%
 if __name__ == "__main__":
     # %matplotlib inline
     import datetime
     if not binary_classification:
-    # summarize history_1 for loss
+        # history_1 = history_1_old[100:]
+        # summarize history_1 for loss
         plt.plot(history_1['loss'])
         plt.plot(history_1['val_loss'])
         plt.title('model loss')
@@ -761,5 +774,3 @@ if __name__ == "__main__":
         plt.legend(['val precision', 'val recall'], loc='lower center')
         plt.savefig("plot/results/precision_vs_recall.png")
         plt.show()
-
-# %%

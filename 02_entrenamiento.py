@@ -122,8 +122,8 @@ def get_data_split(lightcurves, binary_classification=False, use_wavelet=True, k
         y = np.array([lc.headers['koi_disposition'] for lc in lightcurves])
 
     output_classes = np.unique(y)
-    class2num = {label: n for n, label in enumerate(sorted(output_classes))}
-    num2class = {n: label for n, label in enumerate(sorted(output_classes))}
+    class2num = {label: n for n, label in enumerate(sorted(output_classes, reverse=True))}
+    num2class = {n: label for n, label in enumerate(sorted(output_classes, reverse=True))}
 
     if use_wavelet:
         if binary_classification:
