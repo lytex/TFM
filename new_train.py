@@ -444,7 +444,7 @@ def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classificatio
     Fβ = (1+β**2)*(precision*recall)/(β**2*precision+recall)
 
     
-    return precision, recall, F1, Fβ, cm, num2class
+    return precision, recall, F1, Fβ, auc_score, cm, num2class
 
 # precision, recall, F1, Fβ, cm = get_metrics(num2class, X_test, y_test, model_1, β=2.0)
 # print("P : %f\nR : %f\nF1: %f\nFβ: %f" % (precision, recall, F1, Fβ))
@@ -531,11 +531,11 @@ def main(sigma = 20, sigma_upper = 5,
                                                                    k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
             
                 
-                precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
+                precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
             else:
                 # TODO añadir en el caso de k-fold
-                precision_val, recall_val, F1_val, Fβ_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
-            precision, recall, F1, Fβ, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=True)
+                precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
+            precision, recall, F1, Fβ, auc, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=True)
         
             model_path = "logs/models/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".keras"
             model_1.save(model_path)
@@ -585,9 +585,9 @@ def main(sigma = 20, sigma_upper = 5,
     if model:
         return df_candidate
     if return_lightcurves:
-        return precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1, lightcurves
+        return precision, recall, F1, Fβ, auc, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, history_1, lightcurves
     else:
-        return precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1
+        return precision, recall, F1, Fβ, auc, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, history_1
     
 if __name__ == "__main__":
 
@@ -632,8 +632,9 @@ if __name__ == "__main__":
     n_proc = 20 
     parallel = True
 
+
     
-    precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1 = main(sigma=sigma, sigma_upper=sigma_upper,
+    precision, recall, F1, Fβ, auc, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, history_1 = main(sigma=sigma, sigma_upper=sigma_upper,
                 num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
                 num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
                 levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
