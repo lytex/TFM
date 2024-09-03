@@ -576,8 +576,6 @@ def main(sigma = 20, sigma_upper = 5,
     copyfile(f"{study_name}.db", f"{path+file_path}/{study_name}.db")
     print("copiando db a ", f"{path+file_path}/{study_name}.db")
     print(os.listdir(path+file_path+"/"))
-    if model:
-        return df_candidate
     if return_lightcurves:
         return precision, recall, F1, Fβ, auc, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, history_1, lightcurves
     else:
