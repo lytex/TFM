@@ -74,13 +74,14 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     levels_global = 6
     levels_local = 3
     global_level_list = trial.suggest_categorical("global_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
-    # local_level_list = trial.suggest_categorical("local_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
+    local_level_list = trial.suggest_categorical("local_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
     local_level_list = tuple()
 
     # global_level_list = (1, 5,)
     # local_level_list = (1, 3,)
 
     if len(trial.params["global_level_list"]) == 0 and len(trial.params["local_level_list"]) == 0:
+    # if len(trial.params["global_level_list"]) == 0:
         use_wavelet = False
     else:
         use_wavelet = True
@@ -103,15 +104,15 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     k_fold = None
     epochs = 100
     batch_size = 128
-    # l1 = trial.suggest_float("l1", 0.0, 0.1)
-    l1 = 0.0
+    l1 = trial.suggest_float("l1", 0.0, 0.1)
+    # l1 = 0.0
     l2 = trial.suggest_float("l2", 0.0, 0.1)
-    dropout = 0.0
-    # dropout = trial.suggest_float("dropout", 0.0, 0.3)
+    # dropout = 0.0
+    dropout = trial.suggest_float("dropout", 0.0, 0.3)
     
     β = 2.0
-    frac = 1.43
-    # frac =  trial.suggest_float("frac", 0.1, 1.9)
+    # frac = 1.43
+    frac =  trial.suggest_float("frac", 0.1, 1.9)
     
     
     
@@ -124,7 +125,8 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     n_proc = int(multiprocessing.cpu_count()*1.25)
     parallel = True
 
-    precision, recall, F1, Fβ, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, cm_val, history_1 = main(sigma=sigma, sigma_upper=sigma_upper,
+    
+    precision, recall, F1, Fβ, auc, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, history_1  = main(sigma=sigma, sigma_upper=sigma_upper,
                 num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
                 num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
                 levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
@@ -169,8 +171,8 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     local_dict = locals()
     variables_dict = {variable: local_dict.get(variable, trial.params.get(variable)) for variable in variables}
     variables_dict.update({
-        "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ,
-        "precision_val": precision_val, "recall_val": recall_val, "F1_val": F1_val, "Fβ_val": Fβ_val,
+        "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ,, "auc": auc,
+        "precision_val": precision_val, "recall_val": recall_val, "F1_val": F1_val, "Fβ_val": Fβ_val, "auc_val": auc_val,
                   "cm_val_00": cm_val[0][0], "cm_val_01": cm_val[0][1], "cm_val_10": cm_val[1][0], "cm_val_11": cm_val[1][1],
                   "cm_00": cm[0][0], "cm_01": cm[0][1], "cm_10": cm[1][0], "cm_11": cm[1][1], "0": num2class[0], "1": num2class[1]})
     result_df = pd.DataFrame([variables_dict])

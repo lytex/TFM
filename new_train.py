@@ -276,7 +276,7 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
         print("count:",  count[0]/count[1]*frac)
         # from FBetaScore import DifferentiableFBetaScore
         model_1.compile(loss=WeightedBinaryCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
-                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score()])
+                        metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(), tf.keras.metrics.AUC(curve='PR')])
     
     # tf.keras.utils.plot_model(model_1, f"{model_name}.png")
     # tf.keras.utils.model_to_dot(model_1).write(f"{model_name}.dot")
@@ -659,14 +659,14 @@ if __name__ == "__main__":
     # %matplotlib inline
     print("val_auc", history_1.sort_values(by="val_f1_score", ascending=False).iloc[0].val_auc)
 
-    ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in sorted(num2class.values())], reverse=True).plot(xticks_rotation='vertical')
-    plt.subplots_adjust(left=0.05, bottom=0.15)
+    ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in sorted(num2class.values(), reverse=True)]).plot(xticks_rotation='vertical')
+    plt.subplots_adjust(left=0.15, bottom=0.5)
     plt.savefig("plot/results/cm_val.png")
     print("P_val : %f\nR_val : %f\nF1_val: %f\naccuracy: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, cm_val.trace()/cm_val.sum(), Fβ_val))
 
     print(cm_val)
-    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in sorted(num2class.values())], reverse=True).plot(xticks_rotation='vertical')
-    plt.subplots_adjust(left=0.05, bottom=0.15)
+    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in sorted(num2class.values(), reverse=True)]).plot(xticks_rotation='vertical')
+    plt.subplots_adjust(left=0.15, bottom=0.5)
     plt.savefig("plot/results/cm.png")
     print("P : %f\nR : %f\nF1: %f\naccuracy: %f\nFβ: %f" % (precision, recall, F1, cm.trace()/cm.sum(), Fβ))
     print(cm)

@@ -206,7 +206,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
             else:
                 block.add(Conv1D(16*2**i, 5, activation=activation, name=f"Conv1D_{16*2**i}--{n}_gp1"))
             block.add(Conv1D(16*2**i, 5, activation=activation, name=f"Conv1D_{16*2**i}--{n}_gp2"))
-            block.add(MaxPooling1D(pool_size=3, strides=1, name=f"MaxPool1D_3-1--{n}_{i}_gp"))
+            block.add(MaxPooling1D(pool_size=5, strides=2, name=f"MaxPool1D_3-1--{n}_{i}_gp"))
         block.add(Flatten())
         net["global_par"].append(block)
         
@@ -219,7 +219,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
             else:
                 block.add(Conv1D(16*2**i, 5, activation=activation, name=f"Conv1D_{16*2**i}--{n}_gi1"))
             block.add(Conv1D(16*2**i, 5, activation=activation, name=f"Conv1D_{16*2**i}--{n}_gi2"))
-            block.add(MaxPooling1D(pool_size=3, strides=1, name=f"MaxPool1D_3-1--{n}_{i}_gi"))
+            block.add(MaxPooling1D(pool_size=5, strides=2, name=f"MaxPool1D_3-1--{n}_{i}_gi"))
         block.add(Flatten())
         net["global_impar"].append(block)
 
@@ -232,7 +232,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
             else:
                 block.add(Conv1D(16*2**i, 5, activation=activation, name=f"Conv1D_{16*2**i}--{n}_lp1"))
             block.add(Conv1D(16*2**i, 5, activation=activation, name=f"Conv1D_{16*2**i}--{n}_lp2"))
-            block.add(MaxPooling1D(pool_size=3, strides=1, name=f"MaxPool1D_3-1--{n}_{i}_lp"))
+            block.add(MaxPooling1D(pool_size=7, strides=2, name=f"MaxPool1D_3-1--{n}_{i}_lp"))
         block.add(Flatten())
         net["local_par"].append(block)
         
@@ -245,7 +245,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
             else:
                 block.add(Conv1D(16*2**i, 5, activation=activation, name=f"Conv1D_{16*2**i}--{n}_li1"))
             block.add(Conv1D(16*2**i, 5, activation=activation, name=f"Conv1D_{16*2**i}-5--{n}_li2"))
-            block.add(MaxPooling1D(pool_size=3, strides=1, name=f"MaxPool1D_3-1--{n}_{i}_li"))
+            block.add(MaxPooling1D(pool_size=7, strides=2, name=f"MaxPool1D_3-1--{n}_{i}_li"))
         block.add(Flatten())
         net["local_impar"].append(block)
 
