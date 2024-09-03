@@ -28,7 +28,9 @@ import seaborn as sns
 sns.set_theme(style="darkgrid")
 from optuna.importance import PedAnovaImportanceEvaluator
 from optuna_fast_fanova import FanovaImportanceEvaluator
-quantile = 0.475
+# quantile = 0.368
+# quantile = 0.475
+quantile = 0.147 # Estudio combinado
 evaluator = PedAnovaImportanceEvaluator(baseline_quantile=quantile)
 d = evaluator.evaluate(study)
 print(d)
@@ -53,43 +55,56 @@ def optuna_to_pandas(path):
 
 
 # %%
+df.global_level_list = df.global_level_list.fillna(lambda: []).apply(lambda x: x() if callable(x) else x)
+df.local_level_list = df.local_level_list.fillna(lambda: []).apply(lambda x: x() if callable(x) else x)
+
+
+df2.global_level_list = df.global_level_list.fillna(lambda: []).apply(lambda x: x() if callable(x) else x)
+df2.local_level_list = df.local_level_list.fillna(lambda: []).apply(lambda x: x() if callable(x) else x)
+
+# %%
 import seaborn as sns
 import numpy as np
 # sns.catplot(data=df.assign(global_level_list=df.global_level_list.apply(str)).query("F1_val > 0.95"), x="global_level_list", y="l2")
 
-kv = {str(k): v for v, k in enumerate(np.unique(df.global_level_list))}
-vk = {v: str(k) for v, k in enumerate(np.unique(df.global_level_list))}
-enum = df.assign(global_level_list=df.assign(global_level_list=df.global_level_list.apply(str)).global_level_list.replace(to_replace=kv).apply(int)).query("F1_val > 0.95")
-
-fig = sns.kdeplot(
-    data=enum,
-    x="global_level_list",
-    y='l2',
-    thresh=0.01,
-    cmap='plasma',
-    fill=True,
-    bw_method=0.05,
-).get_figure()
-fig.suptitle('global_level_list vs l2', size=32, va='baseline', y=0.90)
-fig.axes[0].set_xlabel("")
-fig.axes[0].set_ylabel("")
-fig.axes[0].tick_params(labelsize=20)
-enum["l2_bin"] = pd.cut(enum.l2, [0, 0.03, 0.10])
-{k: [vk.get(v) for v in val] for k, val in enum.groupby("l2_bin").groups.items()}
-{k: [eval(vk[enum.loc[v].global_level_list]) for v in val] for k, val in enum.groupby("l2_bin").groups.items()}
-
-
-pd.concat(
-[
-pd.DataFrame({k: pd.Series([max(eval(vk[enum.loc[v].global_level_list]), default=0) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
-    .add_prefix("max_"),# .reset_index()
-pd.DataFrame({k: pd.Series([min(eval(vk[enum.loc[v].global_level_list]), default=0) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
-    .add_prefix("min_"),# .reset_index()
-pd.DataFrame({k: pd.Series([len(eval(vk[enum.loc[v].global_level_list])) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
-    .add_prefix("len_"),#.reset_index()
-], join='inner', axis=1)
-# {k: [v for v in val] for k, val in enum.groupby("l3_bin").groups.items()}
-# enum.iloc[5]
+if "global_level_list" in df.keys():
+    shallue = False
+    kv = {str(k): v for v, k in enumerate(np.unique(df.global_level_list))}
+    vk = {v: str(k) for v, k in enumerate(np.unique(df.global_level_list))}
+    enum = df.assign(global_level_list=df.assign(global_level_list=df.global_level_list.apply(str)).global_level_list.replace(to_replace=kv).apply(int)).query("F1_val > 0.95")
+    
+    fig = sns.kdeplot(
+        data=enum,
+        x="global_level_list",
+        y='l2',
+        thresh=0.01,
+        cmap='plasma',
+        fill=True,
+        bw_method=0.05,
+    ).get_figure()
+    fig.suptitle('global_level_list vs l2', size=32, va='baseline', y=0.90)
+    fig.axes[0].set_xlabel("")
+    fig.axes[0].set_ylabel("")
+    fig.axes[0].tick_params(labelsize=20)
+    enum["l2_bin"] = pd.cut(enum.l2, [0, 0.03, 0.10])
+    {k: [vk.get(v) for v in val] for k, val in enum.groupby("l2_bin").groups.items()}
+    {k: [eval(vk[enum.loc[v].global_level_list]) for v in val] for k, val in enum.groupby("l2_bin").groups.items()}
+    
+    
+    pd.concat(
+    [
+    pd.DataFrame({k: pd.Series([max(eval(vk[enum.loc[v].global_level_list]), default=0) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
+        .add_prefix("max_"),# .reset_index()
+    pd.DataFrame({k: pd.Series([min(eval(vk[enum.loc[v].global_level_list]), default=0) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
+        .add_prefix("min_"),# .reset_index()
+    pd.DataFrame({k: pd.Series([len(eval(vk[enum.loc[v].global_level_list])) for v in val]).describe() for k, val in enum.groupby("l2_bin").groups.items()}).T \
+        .add_prefix("len_"),#.reset_index()
+    ], join='inner', axis=1)
+    # {k: [v for v in val] for k, val in enum.groupby("l3_bin").groups.items()}
+    # enum.iloc[5]
+else:
+    shallue = True
+    
 
 
 # %%
@@ -413,9 +428,20 @@ merge = pd.merge(df, df2, on=["F1_val"], how="inner")
 colors=['blue' if x else 'orange' for x in merge.where((merge.recall_val < 0.9) | (merge.precision_val < 0.9)).isna().F1_val.to_numpy() ]
 ax = merge.query('F1_val != 0').query('F1_val > 0.0').reset_index().plot.scatter('index', 'F1_val', figsize=(14, 10), c=colors)
 ax.axhline(y=df.F1_val.quantile(quantile))
+display(merge.assign(F1_val_q=pd.cut(merge.F1_val, [0, df.F1_val.quantile(quantile), 1])).groupby('F1_val_q').F1_val.describe())
+print(merge.assign(F1_val_q=pd.cut(merge.F1_val, [0, df.F1_val.quantile(quantile), 1])).groupby('F1_val_q').F1_val.describe().to_latex())
 fig = ax.get_figure() 
 
 fig.savefig("plot/optuna/split.png")
+
+# %%
+# colors=['blue' if x else 'orange' for x in df.where((df.recall_val < 0.9) | (df.precision_val < 0.9)).isna().F1_val.to_numpy() ]
+df = optuna_to_pandas("example-study.db")
+ax = df.query('F1_val != 0').query('F1_val > 0.0').reset_index().plot.scatter('index', 'F1_val', figsize=(14, 10),)
+ax.axhline(y=df.F1_val.quantile(quantile))
+display(df.assign(F1_val_q=pd.cut(df.F1_val, [0, df.F1_val.quantile(quantile), 1])).groupby('F1_val_q').F1_val.describe())
+print(df.assign(F1_val_q=pd.cut(df.F1_val, [0, df.F1_val.quantile(quantile), 1])).groupby('F1_val_q').F1_val.describe().to_latex())
+fig = ax.get_figure() 
 
 # %%
 import statsmodels.api as sm
@@ -423,6 +449,9 @@ from statsmodels.formula.api import ols
 import pandas as pd
 numeric_level_list = True
 df = optuna_to_pandas("example-study.db")
+
+df.global_level_list = df.global_level_list.fillna(lambda: []).apply(lambda x: x() if callable(x) else x)
+df.local_level_list = df.local_level_list.fillna(lambda: []).apply(lambda x: x() if callable(x) else x)
 
 df['global_level_list'] = df['global_level_list'].apply(tuple)
 df['local_level_list'] = df['local_level_list'].apply(tuple)
@@ -673,14 +702,12 @@ plt.show()
 df3 = optuna_to_pandas("example-study.db").sort_values(by='F1_val', ascending=False)
 # print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df3.sort_values(by="F1_val", ascending=False).iloc[0].items()]))
 df2 = pd.read_csv('20240825-115903/all.csv')
-print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df2.sort_values(by="F1_val", ascending=False).iloc[0, 0:22].items()]))
+print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df2.sort_values(by="F1_val", ascending=True).iloc[0, 0:22].items()]))
 # print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df3.sort_values(by="F1_val", ascending=False).iloc[0].items()]))
-df2.sort_values(by="F1_val", ascending=False).F1
+# df3 = optuna_to_pandas("example-study.db").sort_values(by='F1_val', ascending=False)
+df2.sort_values(by="F1_val", ascending=True).iloc[0, 22:]
 
 # %%
-# %pdb
-# list(df3.sort_values(by="F1_val", ascending=False).iloc[0].items())
-list(df2.sort_values(by="F1_val", ascending=False).iloc[0, 0:22].items())
-print("\n".join([f"{k} = {v if k != 'wavelet_family' and not pd.isna(v) else repr(v) if k =='wavelet_family' else 'None'}" for k, v in df3.sort_values(by="F1_val", ascending=False).iloc[0].items()]))
+df2.query('frac > 0.9 and frac < 1.1').sort_values(by='F1_val', ascending=True).iloc[0]
 
 # %%
