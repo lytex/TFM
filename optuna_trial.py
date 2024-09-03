@@ -171,7 +171,7 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     local_dict = locals()
     variables_dict = {variable: local_dict.get(variable, trial.params.get(variable)) for variable in variables}
     variables_dict.update({
-        "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ,, "auc": auc,
+        "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ, "auc": auc,
         "precision_val": precision_val, "recall_val": recall_val, "F1_val": F1_val, "Fβ_val": Fβ_val, "auc_val": auc_val,
                   "cm_val_00": cm_val[0][0], "cm_val_01": cm_val[0][1], "cm_val_10": cm_val[1][0], "cm_val_11": cm_val[1][1],
                   "cm_00": cm[0][0], "cm_01": cm[0][1], "cm_10": cm[1][0], "cm_11": cm[1][1], "0": num2class[0], "1": num2class[1]})
