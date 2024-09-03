@@ -496,7 +496,6 @@ def main(sigma = 20, sigma_upper = 5,
             return_lightcurves=False,
             lightcurves=None,
             apply_candidates=False,
-           model=None,
     ):
 
     if lightcurves is None:
@@ -517,31 +516,26 @@ def main(sigma = 20, sigma_upper = 5,
             
         lightcurves = [lc for lc in lightcurves if lc is not None]
 
-        if model is None:
+        model_1_lazy = lambda : get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac,  test_size=test_size,
+                                             global_level_list=global_level_list, local_level_list=local_level_list,
+                                            l1=l1, l2=l2, dropout=dropout,
+                                            num_bins_global=num_bins_global,
+                                            num_bins_local=num_bins_local)
+    
+        if k_fold is None:
+            model_1, history_1, num2class, X_val, y_val, X_test, y_test, recall_val = train_model(model_1_lazy, lightcurves,
+                                                               use_wavelet=use_wavelet, binary_classification=binary_classification,
+                                                               k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
         
-            model_1_lazy = lambda : get_model_wrapper(lightcurves, use_wavelet=use_wavelet, binary_classification=binary_classification, frac=frac,  test_size=test_size,
-                                                 global_level_list=global_level_list, local_level_list=local_level_list,
-                                                l1=l1, l2=l2, dropout=dropout,
-                                                num_bins_global=num_bins_global,
-                                                num_bins_local=num_bins_local)
-        
-            if k_fold is None:
-                model_1, history_1, num2class, X_val, y_val, X_test, y_test, recall_val = train_model(model_1_lazy, lightcurves,
-                                                                   use_wavelet=use_wavelet, binary_classification=binary_classification,
-                                                                   k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
             
-                
-                precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
-            else:
-                # TODO añadir en el caso de k-fold
-                precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
-            precision, recall, F1, Fβ, auc, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=True)
-        
-            model_path = "logs/models/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".keras"
-            model_1.save(model_path)
-
+            precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
         else:
-            model_1 = model
+            # TODO añadir en el caso de k-fold
+            precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
+
+        precision, recall, F1, Fβ, auc, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=True)
+    
+
 
     if apply_candidates:
         if use_wavelet:
