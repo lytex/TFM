@@ -75,7 +75,7 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     levels_local = 3
     global_level_list = trial.suggest_categorical("global_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
     local_level_list = trial.suggest_categorical("local_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
-    local_level_list = tuple()
+    # local_level_list = tuple()
 
     # global_level_list = (1, 5,)
     # local_level_list = (1, 3,)
