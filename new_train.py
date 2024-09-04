@@ -533,7 +533,7 @@ def main(sigma = 20, sigma_upper = 5,
         # TODO añadir en el caso de k-fold
         precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
 
-    precision, recall, F1, Fβ, auc, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=True)
+    precision, recall, F1, Fβ, auc, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=False)
 
 
 
@@ -731,7 +731,6 @@ if __name__ == "__main__":
         plt.ylabel('loss')
         plt.xlabel('epoch')
         plt.legend(['train', 'val'], loc='upper left')
-        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
         plt.savefig("plot/results/loss.png")
         plt.show()
 
@@ -754,7 +753,6 @@ if __name__ == "__main__":
         plt.ylabel('auc')
         plt.xlabel('epoch')
         plt.legend(['train', 'val'], loc='upper left')
-        plt.savefig("plot/timestamp/"+datetime.datetime.utcnow().strftime("%s%f")+".png")
         plt.savefig("plot/results/auc.png")
         plt.show()
 
