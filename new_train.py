@@ -376,14 +376,15 @@ def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classificatio
 
 
     cm = confusion_matrix(num2class_vec(y_test_sampled), num2class_vec(y_predict_sampled), labels=[str(v) for v in num2class.values()])
+
+    from sklearn.metrics import precision_recall_curve, auc
+    # Calculate precision and recall for various thresholds
+    precision, recall, thresholds = precision_recall_curve(y_test_sampled, np.squeeze(y_predict))
+    # Calculate the Area Under the Curve (AUC)
+    auc_score = auc(recall, precision)
     if plot:
         ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in num2class.values()]).plot(xticks_rotation='vertical')
         
-        from sklearn.metrics import precision_recall_curve, auc
-        # Calculate precision and recall for various thresholds
-        precision, recall, thresholds = precision_recall_curve(y_test_sampled, np.squeeze(y_predict))
-        # Calculate the Area Under the Curve (AUC)
-        auc_score = auc(recall, precision)
         print("auc_score", auc_score)
         
         # Plot the Precision-Recall curve
