@@ -126,26 +126,47 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     parallel = True
 
     
-    precision, recall, F1, Fβ, auc, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, history_1  = main(sigma=sigma, sigma_upper=sigma_upper,
-                num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
-                num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
-                levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
-                use_wavelet=use_wavelet, binary_classification=binary_classification,
-                k_fold=k_fold,
-                global_level_list=global_level_list, local_level_list=local_level_list,
-                l1=l1, l2=l2, dropout=dropout,
-                epochs=epochs, batch_size=batch_size,
-                frac=frac, β=β,
-                download_dir=download_dir,
-                path=path,
-                df_path=df_path,
-                use_download_cache=use_download_cache,
-                n_proc=n_proc,
-                parallel=parallel,
-                lightcurve_cache=lightcurve_cache,
-                lightcurves=lightcurves,
-                file_path=file_path,
-        )
+    try:
+        precision, recall, F1, Fβ, auc, cm, num2class, precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, history_1  = main(sigma=sigma, sigma_upper=sigma_upper,
+                    num_bins_global=num_bins_global, bin_width_factor_global=bin_width_factor_global,
+                    num_bins_local=num_bins_local, bin_width_factor_local=bin_width_factor_local, num_durations=num_durations,
+                    levels_global=levels_global, levels_local=levels_local, wavelet_family=wavelet_family,
+                    use_wavelet=use_wavelet, binary_classification=binary_classification,
+                    k_fold=k_fold,
+                    global_level_list=global_level_list, local_level_list=local_level_list,
+                    l1=l1, l2=l2, dropout=dropout,
+                    epochs=epochs, batch_size=batch_size,
+                    frac=frac, β=β,
+                    download_dir=download_dir,
+                    path=path,
+                    df_path=df_path,
+                    use_download_cache=use_download_cache,
+                    n_proc=n_proc,
+                    parallel=parallel,
+                    lightcurve_cache=lightcurve_cache,
+                    lightcurves=lightcurves,
+                    file_path=file_path,
+            )
+
+    except Exception as exc:
+
+        print("optuna exc:", exc)
+        import traceback
+        traceback.print_tb(exc.__traceback__)
+        precision = 0
+        recall = 0
+        F1 = 0
+        Fβ = 0
+        auc = 0
+        cm = [[0, 0], [0, 0]]
+        num2class = {0: None, 1: None}
+        precision_val = 0
+        recall_val = 0
+        F1_val = 0
+        Fβ_val = 0
+        auc_val = 0
+        cm_val = [[0, 0], [0, 0]]
+        history_1 = []
 
     gc.collect()
     tf.keras.backend.clear_session()
