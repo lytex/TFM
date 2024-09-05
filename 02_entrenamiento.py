@@ -252,13 +252,13 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
     model_f = concatenate([m.output for m in net["global_par"]] + [m.output for m in net["global_impar"]] + [m.output for m in net["local_par"]] + [m.output for m in net["local_impar"]], axis=-1)
     model_f = BatchNormalization(axis=-1)(model_f)
     model_f = Dropout(dropout)(model_f)
-    model_f = Dense(512,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2))(model_f)
+    model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2))(model_f)
     model_f = Dropout(dropout)(model_f)
-    model_f = Dense(512,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
+    model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
     model_f = Dropout(dropout)(model_f)
-    model_f = Dense(512,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
+    model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
     model_f = Dropout(dropout)(model_f)
-    model_f = Dense(512,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
+    model_f = Dense(256,activation=activation, kernel_regularizer=L1L2( l1=l1, l2=l2,))(model_f)
     if binary_classification:
         model_f = Dense(1,activation='sigmoid', name="sigmoid")(model_f)
     else:
