@@ -335,6 +335,15 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
                   np.where(y_train == 0)[0].shape[0] +np.where(y_test == 0)[0].shape[0] + np.where(y_test == 0)[0].shape[0],
                   np.where(y_train == 1)[0].shape[0] +np.where(y_test == 1)[0].shape[0] + np.where(y_test == 1)[0].shape[0],
              )
+        df_split = pd.DataFrame([
+            {"size": len(np.where(y_train == 0)[0]), "dataset": "0train", "label": num2class.get(0)},
+            {"size": len(np.where(y_train == 1)[0]), "dataset": "0train", "label": num2class.get(1)},
+            {"size": len(np.where(y_val == 0)[0]), "dataset": "1val", "label": num2class.get(0)},
+            {"size": len(np.where(y_val == 1)[0]), "dataset": "1val", "label": num2class.get(1)},
+            {"size": len(np.where(y_test == 0)[0]), "dataset": "2test", "label": num2class.get(0)},
+            {"size": len(np.where(y_test == 1)[0]), "dataset": "2test", "label": num2class.get(1)},
+        ])
+        print(pd.pivot_table(df_split, values='size', index='label', columns='dataset', aggfunc='sum', margins=True).to_latex())
         print("num2class:", num2class)
         temp = model_1.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_val, y_val),
                                 callbacks=callbacks)
@@ -367,7 +376,7 @@ def train_model(model_1_lazy, lightcurves, use_wavelet=True, binary_classificati
 #                                                    use_wavelet=use_wavelet, binary_classification=binary_classification,
 #                                                    k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size)
     
-def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classification=False, plot=False, save_failures=False):
+def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classification=False, plot=False, save_failures=False, figname="ROC"):
     num2class_vec = np.vectorize(num2class.get)
     y_predict = model_1.predict(X_test)
     # Escoger la clase que tiene mayor probabilidad
@@ -400,7 +409,7 @@ def get_metrics(num2class, X_test, y_test, model_1, β=1.0, binary_classificatio
         plt.title('Precision-Recall Curve')
         plt.legend(loc="lower left")
         plt.grid(True)
-        plt.savefig("plot/results/ROC_"+datetime.datetime.utcnow().strftime("%s%f")+".png")
+        plt.savefig(f"plot/results/{figname}.png")
         plt.show()
     if save_failures:
         wrong = y_predict_sampled != y_test_sampled
@@ -502,6 +511,7 @@ def main(sigma = 20, sigma_upper = 5,
             return_lightcurves=False,
             lightcurves=None,
             apply_candidates=False,
+            save_model=False,
     ):
 
     if lightcurves is None:
@@ -534,14 +544,54 @@ def main(sigma = 20, sigma_upper = 5,
                                                            k_fold=k_fold, global_level_list=global_level_list, local_level_list=local_level_list, epochs=epochs, batch_size=batch_size, test_size=test_size)
     
         
-        precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
+        precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True, figname="ROC_val")
     else:
         # TODO añadir en el caso de k-fold
-        precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True)
+        precision_val, recall_val, F1_val, Fβ_val, auc_val, cm_val, num2class = get_metrics(num2class, X_val, y_val, model_1, β=β, binary_classification=binary_classification, plot=True, figname="ROC_val")
 
-    precision, recall, F1, Fβ, auc, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=False)
+    precision, recall, F1, Fβ, auc, cm, num2class = get_metrics(num2class, X_test, y_test, model_1, β=β, binary_classification=binary_classification, plot=False, figname="ROC")
 
+    if save_model:
 
+        folder_path = f"logs/models/{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}/"
+        os.makedirs(os.path.dirname(folder_path), exist_ok=True)
+        model_1.save(f"{folder_path}/model.keras")
+    
+        
+        variables = ["sigma", "sigma_upper",
+                    "num_bins_global", "bin_width_factor_global",
+                    "num_bins_local", "bin_width_factor_local", "num_durations",
+                    "levels_global", "levels_local", "wavelet_family",
+                    "use_wavelet", "binary_classification",
+                    "k_fold",
+                    "global_level_list", "local_level_list",
+                    "l1", "l2","dropout",
+                    "epochs", "batch_size",
+                    "frac", "β",
+                    "download_dir",
+                    "path",
+                    "df_path",
+                    "n_proc",
+                    "parallel",
+                    ]
+        local_dict = locals()
+        variables_dict = {variable: local_dict.get(variable) for variable in variables}
+        variables_dict.update({
+            "precision": precision, "recall": recall, "F1": F1, "Fβ": Fβ, "auc": auc,
+            "precision_val": precision_val, "recall_val": recall_val, "F1_val": F1_val, "Fβ_val": Fβ_val, "auc_val": auc_val,
+                      "cm_val_00": cm_val[0][0], "cm_val_01": cm_val[0][1], "cm_val_10": cm_val[1][0], "cm_val_11": cm_val[1][1],
+                      "cm_00": cm[0][0], "cm_01": cm[0][1], "cm_10": cm[1][0], "cm_11": cm[1][1], "0": num2class[0], "1": num2class[1]})
+        result_df = pd.DataFrame([variables_dict])
+        result_df.to_csv(folder_path + "params.csv", index=False)
+        with open(folder_path+"X_val.pickle", "wb") as f:
+            pickle.dump(X_val, f)
+        with open(folder_path+"y_val.pickle", "wb") as f:
+            pickle.dump(y_val, f)
+        with open(folder_path+"X_test.pickle", "wb") as f:
+            pickle.dump(X_test, f)
+        with open(folder_path+"y_test.pickle", "wb") as f:
+            pickle.dump(y_test, f)
+    
 
     if apply_candidates:
         if use_wavelet:
@@ -650,6 +700,7 @@ if __name__ == "__main__":
                 parallel=parallel,
                 lightcurve_cache=lightcurve_cache,
                 apply_candidates=True,
+                save_model=True,
         )
 
 
@@ -657,15 +708,20 @@ if __name__ == "__main__":
     # %matplotlib inline
     print("val_auc", history_1.sort_values(by="val_f1_score", ascending=False).iloc[0].val_auc)
 
-    ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=[str(v) for v in sorted(num2class.values(), reverse=True)]).plot(xticks_rotation='vertical')
-    plt.subplots_adjust(left=0.15, bottom=0.5)
+    cmds = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in sorted(num2class.values(), reverse=True)]).plot(xticks_rotation='horizontal')
+    plt.setp(plt.gca().get_yticklabels(), rotation='vertical')
+    for text in cmds.text_.flatten():
+        text.set_fontsize(16)
     plt.savefig("plot/results/cm_val.png")
     print("P_val : %f\nR_val : %f\nF1_val: %f\naccuracy: %f\nFβ_val: %f" % (precision_val, recall_val, F1_val, cm_val.trace()/cm_val.sum(), Fβ_val))
-
+    
     print(cm_val)
-    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in sorted(num2class.values(), reverse=True)]).plot(xticks_rotation='vertical')
-    plt.subplots_adjust(left=0.15, bottom=0.5)
+    cmds = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[str(v) for v in sorted(num2class.values(), reverse=True)]).plot(xticks_rotation='horizontal')
+    plt.setp(plt.gca().get_yticklabels(), rotation='vertical')
+    for text in cmds.text_.flatten():
+        text.set_fontsize(16)
     plt.savefig("plot/results/cm.png")
+    
     print("P : %f\nR : %f\nF1: %f\naccuracy: %f\nFβ: %f" % (precision, recall, F1, cm.trace()/cm.sum(), Fβ))
     print(cm)
     print(pd.DataFrame({"dataset": ["Validación" , "Test", ] ,"AUC": [auc_val, auc], "Accuracy": [cm_val.trace()/cm_val.sum(), cm_val.trace()/cm_val.sum()],
@@ -677,7 +733,6 @@ if __name__ == "__main__":
     # %matplotlib inline
     import datetime
     if not binary_classification:
-        # history_1 = history_1_old[100:]
         # summarize history_1 for loss
         plt.plot(history_1['loss'])
         plt.plot(history_1['val_loss'])
