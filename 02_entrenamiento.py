@@ -197,7 +197,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
 
     net = defaultdict(list)
     global_dict = {1: 4, 2: 3, 3: 2, 4: 2, 5: 1, 6: 1}
-    local_dict = {1: 3, 2: 2, 1: 1}
+    local_dict = {1: 3, 2: 2, 3: 1}
  
     for n, data in pliegue_par_global.items():
         block = Sequential()
