@@ -227,7 +227,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
 
     for n, data in pliegue_par_local.items():
         block = Sequential()
-        layer_depth = local_dict[ceil(np.log2(global_view/data.shape[1]))]
+        layer_depth = local_dict[ceil(np.log2(local_view/data.shape[1]))]
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], name=f"Conv1D_{16*2**i}--{n}_lp1"))
@@ -240,7 +240,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
         
     for n, data in pliegue_impar_local.items():
         block = Sequential()
-        layer_depth = local_dict[ceil(np.log2(global_view/data.shape[1]))]
+        layer_depth = local_dict[ceil(np.log2(local_view/data.shape[1]))]
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], name=f"Conv1D_{16*2**i}--{n}_li1"))
