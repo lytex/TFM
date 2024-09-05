@@ -196,12 +196,10 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
 
 
     net = defaultdict(list)
-    global_dict = {1: 4, 2: 3, 3: 2, 4: 2, 5: 1, 6: 1}
-    local_dict = {1: 3, 2: 2, 3: 1}
  
     for n, data in pliegue_par_global.items():
         block = Sequential()
-        layer_depth = global_dict[ceil(np.log2(global_view/data.shape[1]))]
+        layer_depth = ceil(data.shape[1]*5.0/global_view + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], name=f"Conv1D_{16*2**i}--{n}_gp1"))
@@ -214,7 +212,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
         
     for n, data in pliegue_impar_global.items():
         block = Sequential()
-        layer_depth = global_dict[ceil(np.log2(global_view/data.shape[1]))]
+        layer_depth = ceil(data.shape[1]*5.0/global_view + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], name=f"Conv1D_{16*2**i}--{n}_gi1"))
@@ -227,7 +225,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
 
     for n, data in pliegue_par_local.items():
         block = Sequential()
-        layer_depth = local_dict[ceil(np.log2(local_view/data.shape[1]))]
+        layer_depth = ceil(data.shape[1]*2.0/local_view + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], name=f"Conv1D_{16*2**i}--{n}_lp1"))
@@ -240,7 +238,7 @@ def gen_model_2_levels(inputs, classes, activation = 'relu',summary=False, binar
         
     for n, data in pliegue_impar_local.items():
         block = Sequential()
-        layer_depth = local_dict[ceil(np.log2(local_view/data.shape[1]))]
+        layer_depth = ceil(data.shape[1]*2.0/local_view + 1)
         for i in range(layer_depth):
             if i == 0:
                 block.add( Conv1D(16*2**i, 5, activation=activation, input_shape=data.shape[1:], name=f"Conv1D_{16*2**i}--{n}_li1"))
