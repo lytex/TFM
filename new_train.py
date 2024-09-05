@@ -257,7 +257,12 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
     
     if use_wavelet:
         if binary_classification:
+            count =  pd.DataFrame({'col': y_entire}).reset_index(drop=False).groupby('col').index.count()
+            print("count:",  count[0]/count[1])
+            print("count*frac:",  count[0]/count[1]*frac)
             model_1.compile(loss = 'binary_crossentropy', optimizer=tf.keras.optimizers.Adam(),
+                            metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(), tf.keras.metrics.AUC(curve='PR')])
+            model_1.compile(loss=WeightedBinaryCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
                             metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(), tf.keras.metrics.AUC(curve='PR')])
         else:
             
@@ -266,7 +271,8 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
     
             
             count = pd.DataFrame({'col': np.argmax(y_entire, axis=1)}).reset_index(drop=False).groupby('col').index.count()
-            print("count:",  count[0]/count[1]*frac)
+            print("count:",  count[0]/count[1])
+            print("count*frac:",  count[0]/count[1]*frac)
             model_1.compile(loss=WeightedCategoricalCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
                             metrics=[F1_Score(),])
     
@@ -274,6 +280,7 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
         
         count =  pd.DataFrame({'col': y_entire}).reset_index(drop=False).groupby('col').index.count()
         print("count:",  count[0]/count[1]*frac)
+        print("count*frac:",  count[0]/count[1]*frac)
         # from FBetaScore import DifferentiableFBetaScore
         model_1.compile(loss=WeightedBinaryCrossentropy(weights=[1.0, count[0]/count[1]*frac]), optimizer=tf.keras.optimizers.Adam(),
                         metrics=['accuracy', tf.keras.metrics.Recall(), tf.keras.metrics.Precision(), F1_Score(), tf.keras.metrics.AUC(curve='PR')])
