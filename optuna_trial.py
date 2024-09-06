@@ -80,11 +80,12 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     # global_level_list = (1, 5,)
     # local_level_list = (1, 3,)
 
-    if len(trial.params["global_level_list"]) == 0 and len(trial.params["local_level_list"]) == 0:
-    # if len(trial.params["global_level_list"]) == 0:
-        use_wavelet = False
-    else:
-        use_wavelet = True
+    # if len(trial.params["global_level_list"]) == 0 and len(trial.params["local_level_list"]) == 0:
+    # # if len(trial.params["global_level_list"]) == 0:
+    #     use_wavelet = False
+    # else:
+    #     use_wavelet = True
+    use_wavelet = False
 
     if use_wavelet:
         lightcurves = lightcurves_wavelet
