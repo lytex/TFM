@@ -253,7 +253,7 @@ def get_model_wrapper(lightcurves, use_wavelet=True, binary_classification=False
         model_1 = gen_model_2_levels(inputs, output_classes, binary_classification=binary_classification, l1=l1, l2=l2, dropout=dropout, global_view=num_bins_global, local_view=num_bins_local)
         
     else:
-        model_1 = gen_astronet(inputs, output_classes)
+        model_1 = gen_astronet(inputs, output_classes,  l1=l1, l2=l2, dropout=dropout)
     
     if use_wavelet:
         if binary_classification:
