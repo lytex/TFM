@@ -73,20 +73,18 @@ def objective(trial, global_level_list=None, local_level_list=None, use_wavelet=
     binary_classification = True
     levels_global = 6
     levels_local = 3
-    # global_level_list = trial.suggest_categorical("global_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
-    # local_level_list = trial.suggest_categorical("local_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
-    local_level_list = tuple()
-    global_level_list = tuple()
-    use_wavelet = False
+    global_level_list = trial.suggest_categorical("global_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_global)], [])) for x in range(2**(levels_global+1))])
+    local_level_list = trial.suggest_categorical("local_level_list", [tuple(reduce(lambda x, y: x+y, [[i+1]*bool(x&(2**i)) for i in range(levels_local)], [])) for x in range(2**(levels_local+1))])
+    # local_level_list = tuple()
 
     # global_level_list = (1, 5,)
     # local_level_list = (1, 3,)
 
-    # if len(trial.params["global_level_list"]) == 0 and len(trial.params["local_level_list"]) == 0:
-    # # if len(trial.params["global_level_list"]) == 0:
-    #     use_wavelet = False
-    # else:
-    #     use_wavelet = True
+    if len(trial.params["global_level_list"]) == 0 and len(trial.params["local_level_list"]) == 0:
+    # if len(trial.params["global_level_list"]) == 0:
+        use_wavelet = False
+    else:
+        use_wavelet = True
 
     if use_wavelet:
         lightcurves = lightcurves_wavelet
