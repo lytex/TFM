@@ -219,7 +219,7 @@ study_name = "example-study"  # Unique identifier of the study.
 
 storage = "sqlite:///{}.db".format(study_name)
 
-study = optuna.create_study(direction="maximize", storage=storage, sampler=optuna.samplers.RandomSampler())
+study = optuna.create_study(direction="maximize", storage=storage)
 
 study.optimize(objective, n_trials=None, gc_after_trial=True,  show_progress_bar=True)
 
